@@ -1,7 +1,7 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
-import dev.mathops.commons.builder.HtmlBuilder;
-import dev.mathops.commons.parser.ParsingException;
+import dev.mathops.text.builder.HtmlBuilder;
+import dev.mathops.text.parser.ParsingException;
 
 /**
  * A token that represents the end tag of a nonempty element, beginning with &lt;/ and ending with &gt;, with no &lt; or

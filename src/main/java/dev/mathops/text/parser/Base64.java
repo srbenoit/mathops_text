@@ -1,7 +1,7 @@
-package dev.mathops.commons.parser;
+package dev.mathops.text.parser;
 
 import dev.mathops.commons.CoreConstants;
-import dev.mathops.commons.builder.HtmlBuilder;
+import dev.mathops.text.builder.HtmlBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;

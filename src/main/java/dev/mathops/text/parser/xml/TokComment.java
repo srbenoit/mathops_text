@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 /**
  * A token that represents a comment, beginning with <!-- and ending with --> .

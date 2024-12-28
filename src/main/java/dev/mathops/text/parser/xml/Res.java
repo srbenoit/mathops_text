@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 import dev.mathops.commons.res.ResBundle;
 

@@ -1,7 +1,7 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
-import dev.mathops.commons.parser.ICharSpan;
-import dev.mathops.commons.parser.ParsingException;
+import dev.mathops.text.parser.ICharSpan;
+import dev.mathops.text.parser.ParsingException;
 
 import java.util.ArrayList;
 import java.util.Collections;

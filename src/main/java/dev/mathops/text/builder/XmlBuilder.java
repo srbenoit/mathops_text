@@ -1,7 +1,7 @@
-package dev.mathops.commons.builder;
+package dev.mathops.text.builder;
 
 import dev.mathops.commons.CoreConstants;
-import dev.mathops.commons.parser.xml.XmlEscaper;
+import dev.mathops.text.parser.xml.XmlEscaper;
 
 /**
  * Supplements the methods of {@code LineBuilder} with convenience methods for creating XML (or HTML, etc.) files.

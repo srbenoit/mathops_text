@@ -1,4 +1,4 @@
 /**
  * Classes that manage Unicode code points.
  */
-package dev.mathops.commons.unicode;
+package dev.mathops.text.unicode;

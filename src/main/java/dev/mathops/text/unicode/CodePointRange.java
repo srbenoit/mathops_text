@@ -1,4 +1,4 @@
-package dev.mathops.commons.unicode;
+package dev.mathops.text.unicode;
 
 /**
  * An inclusive range of code points.

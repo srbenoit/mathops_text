@@ -1,8 +1,8 @@
-package dev.mathops.commons.parser.json;
+package dev.mathops.text.parser.json;
 
 import dev.mathops.commons.CoreConstants;
 import dev.mathops.commons.log.Log;
-import dev.mathops.commons.parser.ParsingException;
+import dev.mathops.text.parser.ParsingException;
 
 import java.util.ArrayList;
 import java.util.Collection;

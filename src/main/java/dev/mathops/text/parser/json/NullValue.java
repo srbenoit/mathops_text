@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.json;
+package dev.mathops.text.parser.json;
 
 /**
  * A singleton object to represent a JSON "null" value.

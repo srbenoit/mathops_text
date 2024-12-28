@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 /**
  * The set of parse states.

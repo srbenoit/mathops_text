@@ -1,7 +1,7 @@
-package dev.mathops.commons.parser.json;
+package dev.mathops.text.parser.json;
 
 import dev.mathops.commons.CoreConstants;
-import dev.mathops.commons.builder.HtmlBuilder;
+import dev.mathops.text.builder.HtmlBuilder;
 
 import java.util.HashMap;
 import java.util.Map;

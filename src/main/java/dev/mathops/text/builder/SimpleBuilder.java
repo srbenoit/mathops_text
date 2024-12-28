@@ -1,4 +1,4 @@
-package dev.mathops.commons.builder;
+package dev.mathops.text.builder;
 
 import dev.mathops.commons.CoreConstants;
 

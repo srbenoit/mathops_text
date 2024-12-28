@@ -1,4 +1,4 @@
-package dev.mathops.commons.unicode;
+package dev.mathops.text.unicode;
 
 /**
  * The supported tags indicating decomposition mapping.

@@ -1,8 +1,9 @@
-package dev.mathops.commons.unicode;
+package dev.mathops.text.unicode;
 
 import dev.mathops.commons.CoreConstants;
 import dev.mathops.commons.file.FileLoader;
 import dev.mathops.commons.log.Log;
+import dev.mathops.commons.unicode.UnicodeCharacter;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -24,7 +25,7 @@ public final class UnicodeCharacterSet {
     private static UnicodeCharacterSet instance = null;
 
     /** The Unicode characters by code point. */
-    private final Map<Integer, UnicodeCharacter> chars;
+    private final Map<Integer, dev.mathops.commons.unicode.UnicodeCharacter> chars;
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -75,7 +76,7 @@ public final class UnicodeCharacterSet {
             System.arraycopy(split, 0, padded, 0, split.length);
         }
 
-        final UnicodeCharacter chr = new UnicodeCharacter(padded);
+        final dev.mathops.commons.unicode.UnicodeCharacter chr = new dev.mathops.commons.unicode.UnicodeCharacter(padded);
         final Integer key = Integer.valueOf(chr.codePoint);
         this.chars.put(key, chr);
     }
@@ -114,7 +115,7 @@ public final class UnicodeCharacterSet {
      *
      * @return the iterator
      */
-    public Iterator<UnicodeCharacter> iterator() {
+    public Iterator<dev.mathops.commons.unicode.UnicodeCharacter> iterator() {
 
         return this.chars.values().iterator();
     }
@@ -125,7 +126,7 @@ public final class UnicodeCharacterSet {
      * @param codePoint the code point to test
      * @return the corresponding {@code UnicodeCharacter}, null if no character is mapped to the specified code point
      */
-    public UnicodeCharacter getCharacter(final int codePoint) {
+    public dev.mathops.commons.unicode.UnicodeCharacter getCharacter(final int codePoint) {
 
         final Integer key = Integer.valueOf(codePoint);
         return codePoint < 0 ? null : this.chars.get(key);
@@ -142,7 +143,7 @@ public final class UnicodeCharacterSet {
 
         final int result;
 
-        final UnicodeCharacter chr = getCharacter(codePoint);
+        final dev.mathops.commons.unicode.UnicodeCharacter chr = getCharacter(codePoint);
 
         if (chr == null || chr.uppercase == null) {
             result = codePoint;
@@ -164,7 +165,7 @@ public final class UnicodeCharacterSet {
 
         final int result;
 
-        final UnicodeCharacter chr = getCharacter(codePoint);
+        final dev.mathops.commons.unicode.UnicodeCharacter chr = getCharacter(codePoint);
 
         if (chr == null || chr.lowercase == null) {
             result = codePoint;

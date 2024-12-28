@@ -1,6 +1,6 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
-import dev.mathops.commons.builder.HtmlBuilder;
+import dev.mathops.text.builder.HtmlBuilder;
 
 /**
  * An interface for objects that can be serialized as XML elements. Such types should also include a public constructor

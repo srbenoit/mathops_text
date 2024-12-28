@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 /**
  * A token that represents the DOCTYPE declaration, beginning with <!DOCTYPE and ending with >, but which may contain

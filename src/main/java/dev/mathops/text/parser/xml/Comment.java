@@ -1,6 +1,6 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
-import dev.mathops.commons.parser.CharSpan;
+import dev.mathops.text.parser.CharSpan;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,9 +19,9 @@ public final class Comment extends CharSpan implements IContentNode {
     /**
      * Constructs a new {@code Comment} with content taken directly from the source XML.
      *
-     * @param xml        the source XML from which this node was parsed
-     * @param theStart   the start position of the block
-     * @param theEnd     the end position of the block
+     * @param xml           the source XML from which this node was parsed
+     * @param theStart      the start position of the block
+     * @param theEnd        the end position of the block
      * @param theLineNumber the line number of the start of the span
      * @param theColumn     the column of the start of the span
      */
@@ -35,11 +35,11 @@ public final class Comment extends CharSpan implements IContentNode {
     /**
      * Constructs a new {@code Comment}.
      *
-     * @param theStart   the start position of the block
-     * @param theEnd     the end position of the block
+     * @param theStart      the start position of the block
+     * @param theEnd        the end position of the block
      * @param theLineNumber the line number of the start of the span
      * @param theColumn     the column of the start of the span
-     * @param theContent the content, if already parsed
+     * @param theContent    the content, if already parsed
      */
     Comment(final int theStart, final int theEnd, final int theLineNumber, final int theColumn,
             final String theContent) {

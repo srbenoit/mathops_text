@@ -1,4 +1,5 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
+
 
 /**
  * The interface nodes that have content (CData and Comment).

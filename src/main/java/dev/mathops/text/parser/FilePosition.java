@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser;
+package dev.mathops.text.parser;
 
 /**
  * A position within a file. This is a mutable object updated as the file is parsed.

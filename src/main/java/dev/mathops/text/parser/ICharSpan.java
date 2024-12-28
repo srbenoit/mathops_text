@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser;
+package dev.mathops.text.parser;
 
 /**
  * An interface for a span of characters.

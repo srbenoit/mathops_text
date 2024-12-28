@@ -1,8 +1,8 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 import dev.mathops.commons.log.Log;
-import dev.mathops.commons.parser.FilePosition;
-import dev.mathops.commons.parser.ParsingException;
+import dev.mathops.text.parser.FilePosition;
+import dev.mathops.text.parser.ParsingException;
 
 import java.util.List;
 

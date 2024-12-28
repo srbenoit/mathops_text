@@ -1,4 +1,4 @@
-package dev.mathops.commons.builder;
+package dev.mathops.text.builder;
 
 /**
  * Supplements the methods of {@code SimpleBuilder} to add CRLF to the ends of lines.

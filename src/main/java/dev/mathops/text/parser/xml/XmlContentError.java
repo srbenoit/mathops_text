@@ -1,7 +1,7 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
-import dev.mathops.commons.builder.SimpleBuilder;
-import dev.mathops.commons.parser.ICharSpan;
+import dev.mathops.text.builder.SimpleBuilder;
+import dev.mathops.text.parser.ICharSpan;
 
 /**
  * An error message along with the span object with which the error is associated.

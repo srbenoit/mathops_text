@@ -1,9 +1,10 @@
-package dev.mathops.commons.unicode;
+package dev.mathops.text.unicode;
 
 import dev.mathops.commons.CoreConstants;
 import dev.mathops.commons.builder.HtmlBuilder;
 import dev.mathops.commons.file.FileLoader;
 import dev.mathops.commons.log.Log;
+import dev.mathops.commons.unicode.CodePointRange;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +25,7 @@ public final class UnicodeBlocks {
     private static UnicodeBlocks instance = null;
 
     /** A map from normalized block name to code point range. */
-    private final Map<String, CodePointRange> blocks;
+    private final Map<String, dev.mathops.commons.unicode.CodePointRange> blocks;
 
     /** A map from normalized block name to non-normalized name. */
     private final Map<String, String> names;
@@ -85,7 +86,7 @@ public final class UnicodeBlocks {
             final String name = line.substring(semi + 2);
             final String normalized = normalizeBlockName(name);
 
-            this.blocks.put(normalized, new CodePointRange(first, last));
+            this.blocks.put(normalized, new dev.mathops.commons.unicode.CodePointRange(first, last));
             this.names.put(normalized, name);
             final String stripped = stripSpaces(name);
             this.noSpaceNames.put(stripped, normalized);

@@ -1,4 +1,4 @@
-package dev.mathops.commons.parser.xml;
+package dev.mathops.text.parser.xml;
 
 /**
  * A token that represents a CDATA block declaration, beginning with &lt;![CDATA[ and ending with ]]&gt;, which may
