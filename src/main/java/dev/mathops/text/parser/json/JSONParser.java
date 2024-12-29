@@ -479,8 +479,8 @@ public enum JSONParser {
                 throw new ParsingException(pos, pos + 5, "Invalid unicode escape in string.");
             }
 
-            final int uncode = (h1 << 12) + (h2 << 8) + (h3 << 4) + h4;
-            ch = (char) uncode;
+            final int unicode = (h1 << 12) + (h2 << 8) + (h3 << 4) + h4;
+            ch = (char) unicode;
         } else if ((int) ch == (int) 'n') {
             ch = '\n';
             ++range[1];

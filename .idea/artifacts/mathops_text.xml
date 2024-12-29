@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="mathops_text">
+    <output-path>$PROJECT_DIR$/out/libs</output-path>
+    <root id="archive" name="mathops_text.jar">
+      <element id="module-output" name="mathops_text.main" />
+      <element id="dir-copy" path="$PROJECT_DIR$/src/main/resources" />
+    </root>
+  </artifact>
+</component>

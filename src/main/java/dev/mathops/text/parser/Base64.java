@@ -147,7 +147,7 @@ public enum Base64 {
     public static byte[] decode(final String base64) throws ParsingException {
 
         final byte[] block = new byte[CHARS_PER_BLOCK];
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         final byte[] raw = base64.replace("\r", CoreConstants.EMPTY).replace("\n", CoreConstants.EMPTY)
                 .getBytes(StandardCharsets.UTF_8);
@@ -159,13 +159,13 @@ public enum Base64 {
             nextBlock(raw, i, block);
 
             final byte data1 = (byte) ((int) block[0] << SHIFT_2 | (int) block[1] >> SHIFT_4);
-            baos.write((int) data1);
+            out.write((int) data1);
 
             if ((int) block[CHARS_PER_BLOCK - 1] < (int) PAD_INDICATOR) {
                 final byte data2 = (byte) ((int) block[1] << SHIFT_4 | (int) block[2] >> SHIFT_2);
-                baos.write((int) data2);
+                out.write((int) data2);
                 final byte data3 = (byte) ((int) block[2] << SHIFT_6 | (int) block[CHARS_PER_BLOCK - 1]);
-                baos.write((int) data3);
+                out.write((int) data3);
             } else {
 
                 if (len != i + CHARS_PER_BLOCK) {
@@ -175,7 +175,7 @@ public enum Base64 {
 
                 if ((int) block[CHARS_PER_BLOCK - 2] < (int) PAD_INDICATOR) {
                     final byte data4 = (byte) ((int) block[1] << SHIFT_4 | (int) block[2] >> SHIFT_2);
-                    baos.write((int) data4);
+                    out.write((int) data4);
 
                     if (((int) block[CHARS_PER_BLOCK - 2] & (int) LS_2_BITS) != 0) {
                         final String message = Res.get(Res.B64_BAD_THIRD);
@@ -188,7 +188,7 @@ public enum Base64 {
             }
         }
 
-        return baos.toByteArray();
+        return out.toByteArray();
     }
 
     /**

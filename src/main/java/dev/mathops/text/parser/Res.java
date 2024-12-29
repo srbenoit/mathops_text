@@ -9,14 +9,6 @@ import java.util.Locale;
  */
 final class Res extends ResBundle {
 
-    // Used by HexEncoder
-
-    /** A resource key. */
-    static final String INVALID_HEX_LEN = key(1);
-
-    /** A resource key. */
-    static final String INVALID_HEX = key(2);
-
     // Used by Base64
 
     /** A resource key. */
@@ -44,9 +36,6 @@ final class Res extends ResBundle {
 
     /** The resources - an array of key-values pairs. */
     private static final String[][] EN_US = { //
-            {INVALID_HEX_LEN, "Invalid length for hex string {0}"},
-            {INVALID_HEX, "Invalid hex string {0}"},
-
             {B64_PAD_BEFORE_END, "Base64 decode: Pad found before data end",},
             {B64_BAD_SECOND, "Base64 decode: Second character was invalid",},
             {B64_BAD_THIRD, "Base64 decode: Third character was invalid",},

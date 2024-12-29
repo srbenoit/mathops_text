@@ -1,7 +1,7 @@
 package dev.mathops.text.parser.xml;
 
 import dev.mathops.commons.log.Log;
-import dev.mathops.commons.unicode.UnicodeCharacter;
+import dev.mathops.text.unicode.UnicodeCharacter;
 import dev.mathops.text.unicode.UnicodeCharacterSet;
 
 /**
