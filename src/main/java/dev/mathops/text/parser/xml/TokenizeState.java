@@ -23,7 +23,7 @@ final class TokenizeState {
     private EXmlParseState state;
 
     /** The start position of the current token. */
-    private final FilePosition start;
+    private FilePosition start;
 
     /** The current nesting level. */
     private int nesting;
@@ -128,12 +128,13 @@ final class TokenizeState {
         return this.start;
     }
 
+
     /**
      * Sets the position of the start of the current token.
      *
      * @param newStart the new start position
      */
-    public void FilePosition(final FilePosition newStart) {
+    public void setStart(final FilePosition newStart) {
 
         this.start.copyFrom(newStart);
     }

@@ -124,7 +124,7 @@ public final class XmlContent extends LockedContent {
      *
      * @return the top-level element
      */
-    public IElement getToplevel() {
+    public IElement getTopLevel() {
 
         IElement result = null;
 
