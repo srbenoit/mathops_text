@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="mathops_commons">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../mathops_commons/out/libs/mathops_commons.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
