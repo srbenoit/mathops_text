@@ -1,7 +1,5 @@
 package dev.mathops.text.parser.xml;
 
-import dev.mathops.text.parser.FilePosition;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +21,7 @@ final class TokenizeState {
     private EXmlParseState state;
 
     /** The start position of the current token. */
-    private FilePosition start;
+    private XmlFilePosition start;
 
     /** The current nesting level. */
     private int nesting;
@@ -38,7 +36,7 @@ final class TokenizeState {
         this.content = theContent;
         this.tokens = new ArrayList<>(EST_NUM_TOKENS);
         this.state = EXmlParseState.CHARS;
-        this.start = new FilePosition();
+        this.start = new XmlFilePosition();
         this.nesting = 0;
     }
 
@@ -123,7 +121,7 @@ final class TokenizeState {
      *
      * @return the start position
      */
-    public FilePosition getStart() {
+    public XmlFilePosition getStart() {
 
         return this.start;
     }
@@ -134,7 +132,7 @@ final class TokenizeState {
      *
      * @param newStart the new start position
      */
-    public void setStart(final FilePosition newStart) {
+    public void setStart(final XmlFilePosition newStart) {
 
         this.start.copyFrom(newStart);
     }

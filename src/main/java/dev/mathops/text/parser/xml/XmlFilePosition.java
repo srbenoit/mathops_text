@@ -1,12 +1,12 @@
-package dev.mathops.text.parser;
+package dev.mathops.text.parser.xml;
 
 /**
  * A position within a file. This is a mutable object updated as the file is parsed.
  */
-public final class FilePosition {
+final class XmlFilePosition {
 
-    /** The byte offset within the file. */
-    public int byteOffset = 0;
+    /** The character offset within the file. */
+    public int offset = 0;
 
     /** The line number (the first line in the file is line 1). */
     public int lineNumber;
@@ -15,9 +15,9 @@ public final class FilePosition {
     public int column;
 
     /**
-     * Constructs a new {@code FilePosition} with byte offset 0, line 1, and column 1.
+     * Constructs a new {@code FilePosition} with offset 0, line 1, and column 1.
      */
-    public FilePosition() {
+    XmlFilePosition() {
 
         this.lineNumber = 1;
         this.column = 1;
@@ -28,9 +28,9 @@ public final class FilePosition {
      *
      * @param source the source {@code FilePosition}
      */
-    public void copyFrom(final FilePosition source) {
+    public void copyFrom(final XmlFilePosition source) {
 
-        this.byteOffset = source.byteOffset;
+        this.offset = source.offset;
         this.lineNumber = source.lineNumber;
         this.column = source.column;
     }
