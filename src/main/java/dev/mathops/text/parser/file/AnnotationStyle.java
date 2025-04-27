@@ -17,13 +17,16 @@ import java.awt.Color;
  * </ul>
  *
  * @param fontColor       the AWT color for the font; null if no change to default font color
- * @param fontPosture     either {@code Font.PLAIN} or {@code Font.ITALIC}
+ * @param isItalic        true if the style indicates italic font
  * @param fontWeight      a font weight, from 100 (thin) to 900 (thick), where 400 represents a typical "normal" font
  *                        weight, and 700 represents a typical "bold" weight
  * @param decorationStyle the decoration style (null if no decoration)
  * @param decorationColor the AWT color to use when drawing the decoration (ignored if {@code decorationStyle} is null,
  *                        required if {@code decorationStyle} is non-null)
  */
-public record AnnotationStyle(Color fontColor, int fontPosture, int fontWeight, EDecorationStyle decorationStyle,
+public record AnnotationStyle(Color fontColor, boolean isItalic, int fontWeight, EDecorationStyle decorationStyle,
                               Color decorationColor) {
+
+    /** A font weight threshold at which level (or above) the font is considered "BOLD" */
+    public static final int BOLD_THRESHOLD = 550;
 }

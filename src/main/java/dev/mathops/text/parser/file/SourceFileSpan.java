@@ -52,5 +52,64 @@ public record SourceFileSpan(int startLine, int startChar, int endLine, int endC
             }
         }
     }
+
+    /**
+     * Tests whether the span contains a particular line index and character index.
+     *
+     * @param lineIndex the line index
+     * @param charIndex the character index within the line
+     * @return -1 if the character index is not included in or adjacent to the span; 0 if the character index is
+     *         included in the span; 1 if the character immediately follows the span; 2 if the span has zero length and
+     *         the character index matches the span position
+     */
+    public ESpanIntersection containsLineChar(final int lineIndex, final int charIndex) {
+
+        ESpanIntersection result = ESpanIntersection.EXCLUDED;
+
+        if (this.startLine == this.endLine) {
+            // This is a single-line span
+            if (this.startChar == this.endChar) {
+                // This is a zero-length span
+                if (this.startChar == charIndex) {
+                    result = ESpanIntersection.START_AND_END;
+                }
+            } else {
+                // This is a nonzero-length span
+                if (charIndex == this.startChar) {
+                    result = ESpanIntersection.START;
+                } else if (charIndex > this.startChar) {
+                    if (charIndex == this.endChar) {
+                        result = ESpanIntersection.END;
+                    } else if (charIndex < this.endChar) {
+                        result = ESpanIntersection.INTERIOR;
+                    }
+                }
+            }
+        } else {
+            // The span includes characters from multiple lines
+            if (lineIndex > this.startLine) {
+                if (lineIndex < this.endLine) {
+                    // Multi-line span and specified line is in its interior
+                    result = ESpanIntersection.INTERIOR;
+                } else if (lineIndex == this.endLine) {
+                    // Char index lies in the last line of this span
+                    if (charIndex == this.endChar) {
+                        result = ESpanIntersection.END;
+                    } else if (charIndex < this.endChar) {
+                        result = ESpanIntersection.INTERIOR;
+                    }
+                }
+            } else if (lineIndex == this.startLine) {
+                // Char index lies in the first line of this span
+                if (charIndex == this.startChar) {
+                    result = ESpanIntersection.START;
+                } else if (charIndex > this.startChar) {
+                    result = ESpanIntersection.INTERIOR;
+                }
+            }
+        }
+
+        return result;
+    }
 }
 

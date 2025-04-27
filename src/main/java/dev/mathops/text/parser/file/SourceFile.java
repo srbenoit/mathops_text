@@ -68,6 +68,43 @@ public final class SourceFile {
     }
 
     /**
+     * Gets the number of lines in the source file.
+     *
+     * @return the number of lines
+     */
+    public int getNumLines() {
+
+        return this.lines.size();
+    }
+
+    /**
+     * Gets a single line of text.
+     *
+     * @param index the line index
+     * @return the line of text
+     */
+    public String getLine(final int index) {
+
+        return this.lines.get(index);
+    }
+
+    /**
+     * Gets the maximum number of columns of any line in the source file.
+     *
+     * @return the maximum number of columns
+     */
+    public int getMaxColumns() {
+
+        int max = 0;
+
+        for (final String line : this.lines) {
+            max = Math.max(max, line.length());
+        }
+
+        return max;
+    }
+
+    /**
      * Adds an identified span to a file.
      *
      * @param theSpan the span to add
@@ -96,5 +133,21 @@ public final class SourceFile {
         final FileSpanAnnotation annotation = new FileSpanAnnotation(annotationType, description, spanStyle);
         final SourceFileSpan span = new SourceFileSpan(startLine, startChar, endLine, endChar, annotation);
         addSpan(span);
+    }
+
+    /**
+     * Adds all spans that include any characters on a given line to a target list.
+     *
+     * @param lineIndex the index of the line
+     * @param target    a list to which to add all matching spans (spans are added to this list in the same order they
+     *                  were added to the source file)
+     */
+    public void getSpansIntersectingLine(final int lineIndex, final List<? super SourceFileSpan> target) {
+
+        for (final SourceFileSpan span : this.spans) {
+            if (span.startLine() <= lineIndex && span.endLine() >= lineIndex) {
+                target.add(span);
+            }
+        }
     }
 }

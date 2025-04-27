@@ -1,7 +1,8 @@
 package dev.mathops.text.parser.file;
 
 /**
- * Styles of decoration that can be applied to a span of content.
+ * Styles of decoration that can be applied to a span of content.  Note that only the CARET style will be visible if the
+ * span has zero length (it appears as a single caret below the span's position).
  */
 public enum EDecorationStyle {
 
@@ -23,11 +24,11 @@ public enum EDecorationStyle {
     /** Double strikethrough. */
     DOUBLE_STRIKETHROUGH,
 
-    /** Wavy strikethrough. */
-    WAVY_STRIKETHROUGH,
-
     /** Dotted strikethrough. */
     DOTTED_STRIKETHROUGH,
+
+    /** Wavy strikethrough. */
+    WAVY_STRIKETHROUGH,
 
     /** Single outline. */
     OUTLINE,
@@ -43,4 +44,7 @@ public enum EDecorationStyle {
 
     /** Drop shadow drawn behind the text with x/y offset. */
     DROP_SHADOW,
+
+    /** A caret between each pair of characters contained in the span, and including carets at the start and end. */
+    CARET,
 }
