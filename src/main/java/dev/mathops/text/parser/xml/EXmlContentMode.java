@@ -24,5 +24,5 @@ public enum EXmlContentMode {
     ELEMENTS_ONLY,
 
     /** Text/character data and elements. */
-    TEXT_AND_ELEMENTS;
+    TEXT_AND_ELEMENTS,
 }

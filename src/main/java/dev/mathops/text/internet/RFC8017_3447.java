@@ -1,5 +1,7 @@
 package dev.mathops.text.internet;
 
+import dev.mathops.commons.CoreConstants;
+
 import java.math.BigInteger;
 
 /**
@@ -191,15 +193,32 @@ public enum RFC8017_3447 {
     }
 
     /**
-     * Encrypts a message using RSAES-OAEP.
+     * Encrypts a message using RSAES-OAEP and the SHA512 hash.
      *
      * @param publicKey the recipient's public key
      * @param message   the message to encrypt
      * @param label     an optional label
      * @return the encrypted (ciphertext) message
+     * @throws IllegalArgumentException if the message is too long
      */
-    public static byte[] RSAES_OAEP_ENCRYPT(final RSAPublicKey publicKey, final byte[] message, final String label) {
+    public static byte[] RSAES_OAEP_SHA512_ENCRYPT(final RSAPublicKey publicKey, final byte[] message,
+                                                   final String label) {
 
+        final byte[] modulusBytes = publicKey.n.toByteArray();
+        final int k = (int) modulusBytes[0] == 0 ? modulusBytes.length - 1 : modulusBytes.length;
+
+        final int hLen = 64; // number of bytes in hash function output, 512 / 8
+        final int mLen = message.length;
+
+        final int maxMessage = k - 2 * hLen - 2;
+        if (mLen > maxMessage) {
+            throw new IllegalArgumentException("message too long");
+        }
+
+        final String actualLabel = label == null ? CoreConstants.EMPTY : label;
+
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -212,5 +231,7 @@ public enum RFC8017_3447 {
      */
     public static byte[] rsassa_pkcs1_v15_sign(final byte[] text, final byte[] key, final String method) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Classes that support parsing of text files.
+ * Classes that support parsing of line-oriented text files.
  *
  * <dl>
  * <dt>{@code SourceFile}</dt>

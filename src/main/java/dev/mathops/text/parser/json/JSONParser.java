@@ -345,7 +345,7 @@ public enum JSONParser {
         if (range[1] == range[2]) {
             throw new ParsingException(range[1] - 1, range[2],
                     "JSON data ended when expecting closing quote of string: ["
-                            + new String(chars, start, range[1] + 1) + "]");
+                    + new String(chars, start, range[1] + 1) + "]");
         }
         if ((int) chars[range[1]] != (int) '"') {
             throw new ParsingException(range[1], range[1] + 1,

@@ -20,7 +20,7 @@ public enum RFC7518 {
         byte[] result = null;
 
         if (key.length >= 32) {
-            result = RFC2104.hmac(signingInput, key, "SHA-256");
+            result = RFC2104.HMAC_SHA256(signingInput, key);
         } else {
             Log.warning("HS256 algorithm requires a key length of 32 or greater.");
         }
@@ -55,7 +55,7 @@ public enum RFC7518 {
         byte[] result = null;
 
         if (key.length >= 48) {
-            result = RFC2104.hmac(signingInput, key, "SHA-384");
+            result = RFC2104.HMAC_SHA384(signingInput, key);
         } else {
             Log.warning("HS384 algorithm requires a key length of 48 or greater.");
         }
@@ -90,7 +90,7 @@ public enum RFC7518 {
         byte[] result = null;
 
         if (key.length >= 64) {
-            result = RFC2104.hmac(signingInput, key, "SHA-512");
+            result = RFC2104.HMAC_SHA512(signingInput, key);
         } else {
             Log.warning("HS512 algorithm requires a key length of 64 or greater.");
         }
@@ -227,6 +227,8 @@ public enum RFC7518 {
      */
     public static byte[] algES256(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -253,6 +255,8 @@ public enum RFC7518 {
      */
     public static byte[] algES384(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -279,6 +283,8 @@ public enum RFC7518 {
      */
     public static byte[] algES512(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -305,6 +311,8 @@ public enum RFC7518 {
      */
     public static byte[] algPS256(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -331,6 +339,8 @@ public enum RFC7518 {
      */
     public static byte[] algPS384(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -357,6 +367,8 @@ public enum RFC7518 {
      */
     public static byte[] algPS512(final byte[] signingInput, final byte[] key) {
 
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**

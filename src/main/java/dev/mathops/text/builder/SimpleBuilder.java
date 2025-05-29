@@ -6,7 +6,7 @@ import dev.mathops.commons.CoreConstants;
  * Provides methods to concatenate string representations of various primitive or object types to the superclass
  * character sequence.
  */
-public class SimpleBuilder extends CoreBuilder {
+public class SimpleBuilder extends Builder {
 
     /** A commonly used character array. */
     private static final char[] TRUE = "true".toCharArray();

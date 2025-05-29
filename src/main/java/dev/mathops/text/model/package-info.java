@@ -14,7 +14,7 @@
  */
 
 /**
- * Classes to serialize Tree Model nodes (as defined in {@code dev.mathops.core.model} to text formats and to
- * parse those formats into trees.
+ * Classes to serialize Tree Model nodes (as defined in {@code dev.mathops.core.model}) to text formats and to parse
+ * those formats into trees.
  */
 package dev.mathops.text.model;

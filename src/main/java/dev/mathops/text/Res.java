@@ -13,7 +13,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-package dev.mathops.text.model;
+package dev.mathops.text;
 
 import dev.mathops.commons.res.ResBundle;
 
@@ -24,22 +24,30 @@ import java.util.Locale;
  */
 final class Res extends ResBundle {
 
-    /** A resource key. */
-    static final String NULL_NODE = key(1);
+    // Used by UnicodePlus
 
     /** A resource key. */
-    static final String NULL_BUILDER = key(2);
+    static final String UNI_CP_OUT_OF_RANGE = key(1);
+
+    // Used by UnicodePlusEscapes
 
     /** A resource key. */
-    static final String UNSUPPORTED_NODE_TYPE = key(3);
+    static final String UNI_CANT_LOAD_ESC_DB = key(2);
+
+    /** A resource key. */
+    static final String UNI_BAD_ESC_IN_DB = key(3);
+
+    /** A resource key. */
+    static final String UNI_LOADED_ESC_DB = key(4);
 
     //
 
     /** The resources - an array of key-values pairs. */
     private static final String[][] EN_US = {
-            {NULL_NODE, "Node to write may not be null"},
-            {NULL_BUILDER, "Builder may not be null"},
-            {UNSUPPORTED_NODE_TYPE, "Unsupported tree node type"},
+            {UNI_CP_OUT_OF_RANGE, "Code point detected outside legal range; ignoring."},
+            {UNI_CANT_LOAD_ESC_DB, "Unable to load Unicode+ escape sequence database"},
+            {UNI_BAD_ESC_IN_DB, "Invalid line in escape database: ''{0}''"},
+            {UNI_LOADED_ESC_DB, "Loaded {0} Unicode+ escape sequences"},
     };
 
     /** The singleton instance. */
@@ -62,5 +70,18 @@ final class Res extends ResBundle {
     static String get(final String key) {
 
         return instance.getMsg(key);
+    }
+
+    /**
+     * Retrieves the message with a specified key, then uses a {@code MessageFormat} to format that message pattern with
+     * a collection of arguments.
+     *
+     * @param key       the message key
+     * @param arguments the arguments, as for {@code MessageFormat}
+     * @return the formatted string (never {@code null})
+     */
+    static String fmt(final String key, final Object... arguments) {
+
+        return instance.formatMsg(key, arguments);
     }
 }
