@@ -49,7 +49,7 @@ public final class FIPS180SHA1 extends FIPS180 {
      *
      * @return the digest size, in bytes
      */
-    public int digestSize() {
+    public int hashSize() {
 
         return 20;
     }

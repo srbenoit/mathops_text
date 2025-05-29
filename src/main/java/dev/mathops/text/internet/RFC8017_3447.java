@@ -1,6 +1,7 @@
 package dev.mathops.text.internet;
 
 import dev.mathops.commons.CoreConstants;
+import dev.mathops.text.fips.FIPS180;
 
 import java.math.BigInteger;
 
@@ -26,7 +27,7 @@ public enum RFC8017_3447 {
         byte[] result;
 
         byte[] bigEndian = x.toByteArray(); // Most significant byte in position [0]
-        if (bigEndian[0] == 0) {
+        if ((int) bigEndian[0] == 0) {
             // The most-significant byte only carries the sign bit.  We only consider positive integers in this
             // method, so we can discard this top byte
             final int len = bigEndian.length - 1;
@@ -193,7 +194,49 @@ public enum RFC8017_3447 {
     }
 
     /**
-     * Encrypts a message using RSAES-OAEP and the SHA512 hash.
+     * The MFG1 mask generation function.
+     *
+     * @param seed         the seed from which mask is generated, an octet string
+     * @param maskLen      intended length in octets of the mask, at most 2^32 hLen
+     * @param hashFunction a hash function
+     * @return the mask, an octet string of length maskLen
+     */
+    public static byte[] MGF1(final byte[] seed, final int maskLen, final FIPS180 hashFunction) {
+
+        final int hLen = hashFunction.hashSize();
+        final int count = ((maskLen + hLen - 1) / hLen);
+
+        final int seedLen = seed.length;
+        final byte[] toHash = new byte[seedLen + 4];
+        System.arraycopy(seed, 0, toHash, 0, seedLen);
+
+        byte[] t = new byte[count * hLen];
+
+        int pos = 0;
+        for (int i = 0; i < count; ++i) {
+            toHash[seedLen] = (byte) (i >> 24);
+            toHash[seedLen + 1] = (byte) (i >> 16);
+            toHash[seedLen + 2] = (byte) (i >> 8);
+            toHash[seedLen + 3] = (byte) (i);
+            final byte[] hash = hashFunction.hash(toHash);
+            System.arraycopy(hash, 0, t, pos, hLen);
+            pos += hLen;
+        }
+
+        byte[] result;
+
+        if (maskLen == t.length) {
+            result = t;
+        } else {
+            result = new byte[maskLen];
+            System.arraycopy(t, 0, result, 0, maskLen);
+        }
+
+        return result;
+    }
+
+    /**
+     * Encrypts a message using RSAES-OAEP and the SHA256 hash.
      *
      * @param publicKey the recipient's public key
      * @param message   the message to encrypt
@@ -201,7 +244,7 @@ public enum RFC8017_3447 {
      * @return the encrypted (ciphertext) message
      * @throws IllegalArgumentException if the message is too long
      */
-    public static byte[] RSAES_OAEP_SHA512_ENCRYPT(final RSAPublicKey publicKey, final byte[] message,
+    public static byte[] RSAES_OAEP_SHA256_ENCRYPT(final RSAPublicKey publicKey, final byte[] message,
                                                    final String label) {
 
         final byte[] modulusBytes = publicKey.n.toByteArray();
@@ -217,21 +260,5 @@ public enum RFC8017_3447 {
 
         final String actualLabel = label == null ? CoreConstants.EMPTY : label;
 
-        // FIXME
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    /**
-     * Computes the HMAC of a block of text using a supplied key and digest method.
-     *
-     * @param text   the test
-     * @param key    the key
-     * @param method the digest method ("SHA-256", "SHA-384", "SHA-512")
-     * @return the resulting digest
-     */
-    public static byte[] rsassa_pkcs1_v15_sign(final byte[] text, final byte[] key, final String method) {
-
-        // FIXME
-        throw new UnsupportedOperationException("Not yet implemented");
     }
 }

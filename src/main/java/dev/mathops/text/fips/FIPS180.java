@@ -25,11 +25,11 @@ public abstract class FIPS180 {
     public abstract int wordSize();
 
     /**
-     * Gets the digest size, in bytes.
+     * Gets the hash size, in bytes.
      *
-     * @return the digest size, in bytes
+     * @return the hash size, in bytes
      */
-    public abstract int digestSize();
+    public abstract int hashSize();
 
     /**
      * Computes a hash of a message.
