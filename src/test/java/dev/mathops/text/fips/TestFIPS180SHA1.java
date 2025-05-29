@@ -88,7 +88,7 @@ public class TestFIPS180SHA1 {
      * A test case.
      */
     @Test
-    @DisplayName("SHA-1 hash of 896-bit")
+    @DisplayName("SHA-1 hash of 8000000-bit")
     void test005() {
 
         final byte[] message = new byte[1000000];
