@@ -6,7 +6,7 @@ import java.math.BigInteger;
  * An RSA private key (second representation) as defined in <a href='https://www.rfc-editor.org/rfc/rfc8017'>RFC 8017
  * (PKCS #1: RSA Cryptography * Specifications Version 2.2)</a>.
  */
-public class RSAPrivateKey2 {
+public class RFC8017PrivateKey2 {
 
     /** The first factor (a positive integer). */
     public final BigInteger p;
@@ -36,8 +36,8 @@ public class RSAPrivateKey2 {
      * @param theQInv     the (first) CRT coefficient (a positive integer)
      * @param theTriplets a (possible empty) sequence of triplets
      */
-    public RSAPrivateKey2(final BigInteger theP, final BigInteger theQ, final BigInteger theDP, final BigInteger theDQ,
-                          final BigInteger theQInv, final Triplet... theTriplets) {
+    public RFC8017PrivateKey2(final BigInteger theP, final BigInteger theQ, final BigInteger theDP, final BigInteger theDQ,
+                              final BigInteger theQInv, final Triplet... theTriplets) {
 
         this.p = theP;
         this.q = theQ;

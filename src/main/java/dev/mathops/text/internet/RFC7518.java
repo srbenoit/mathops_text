@@ -1,6 +1,11 @@
 package dev.mathops.text.internet;
 
 import dev.mathops.commons.log.Log;
+import dev.mathops.text.fips.FIPS180SHA256;
+import dev.mathops.text.fips.FIPS180SHA384;
+import dev.mathops.text.fips.FIPS180SHA512;
+
+import java.util.Random;
 
 /**
  * An implementation of <a href='https://www.rfc-editor.org/rfc/rfc7518.html'>RFC 7518 (JSON Web Algorithms (JWA))</a>.
@@ -118,19 +123,13 @@ public enum RFC7518 {
      *
      * @param signingInput the block of text to be hashed
      * @param key          the key
+     * @param rnd          a random number generator
      * @return the JWS signature; null if an error occurred
      */
-    public static byte[] algRS256(final byte[] signingInput, final byte[] key) {
+    public static byte[] algRS256(final byte[] signingInput, final RFC8017PrivateKey1 key, final Random rnd) {
 
-        byte[] result = null;
-
-        if (key.length >= 256) {
-
-        } else {
-            Log.warning("RS256 algorithm requires a key length of 256 or greater.");
-        }
-
-        return result;
+        // TODO: Validate key size
+        return RFC8017.RSASSA_PKCS1_V15_SIGN(key, signingInput, FIPS180SHA256.INSTANCE, rnd);
     }
 
     /**
@@ -141,66 +140,52 @@ public enum RFC7518 {
      * @param signature    the signature to validate
      * @return true if the signature was valid; false if not
      */
-    public static boolean validateAlgRS256(final byte[] signingInput, final byte[] key, final byte[] signature) {
+    public static boolean validateAlgRS256(final byte[] signingInput, final RFC8017PublicKey key,
+                                           final byte[] signature) {
 
-        final byte[] expected = algRS256(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        return RFC8017.RSASSA_PKCS1_V15_VERIFY(key, signingInput, signature, FIPS180SHA256.INSTANCE);
     }
 
     /**
      * An implementation of the "RS384" (RSASSA-PKCS1-v1_5 using SHA-384) algorithm.
      *
-     * @param signingInput the block of text to be hashed
+     * @param signingInput the block of text to be signed
      * @param key          the key
+     * @param rnd          a random number generator
      * @return the JWS signature; null if an error occurred
      */
-    public static byte[] algRS384(final byte[] signingInput, final byte[] key) {
+    public static byte[] algRS384(final byte[] signingInput, final RFC8017PrivateKey1 key, final Random rnd) {
 
-        byte[] result = null;
-
-        if (key.length >= 256) {
-
-        } else {
-            Log.warning("RS384 algorithm requires a key length of 256 or greater.");
-        }
-
-        return result;
+        // TODO: Validate key size
+        return RFC8017.RSASSA_PKCS1_V15_SIGN(key, signingInput, FIPS180SHA384.INSTANCE, rnd);
     }
 
     /**
      * Verifies a signature using the "RS384" algorithm in constant-time fashion as required by RFC 1518.
      *
-     * @param signingInput the block of text to be hashed
+     * @param signingInput the block of text to be signed
      * @param key          the key
      * @param signature    the signature to validate
      * @return true if the signature was valid; false if not
      */
-    public static boolean validateAlgRS384(final byte[] signingInput, final byte[] key, final byte[] signature) {
+    public static boolean validateAlgRS384(final byte[] signingInput, final RFC8017PublicKey key,
+                                           final byte[] signature) {
 
-        final byte[] expected = algRS384(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        return RFC8017.RSASSA_PKCS1_V15_VERIFY(key, signingInput, signature, FIPS180SHA384.INSTANCE);
     }
 
     /**
      * An implementation of the "RS512" (RSASSA-PKCS1-v1_5 using SHA-512) algorithm.
      *
-     * @param signingInput the block of text to be hashed
+     * @param signingInput the block of text to be signed
      * @param key          the key
+     * @param rnd          a random number generator
      * @return the JWS signature; null if an error occurred
      */
-    public static byte[] algRS512(final byte[] signingInput, final byte[] key) {
+    public static byte[] algRS512(final byte[] signingInput, final RFC8017PrivateKey1 key, final Random rnd) {
 
-        byte[] result = null;
-
-        if (key.length >= 256) {
-
-        } else {
-            Log.warning("RS512 algorithm requires a key length of 256 or greater.");
-        }
-
-        return result;
+        // TODO: Validate key size
+        return RFC8017.RSASSA_PKCS1_V15_SIGN(key, signingInput, FIPS180SHA512.INSTANCE, rnd);
     }
 
     /**
@@ -211,11 +196,10 @@ public enum RFC7518 {
      * @param signature    the signature to validate
      * @return true if the signature was valid; false if not
      */
-    public static boolean validateAlgRS512(final byte[] signingInput, final byte[] key, final byte[] signature) {
+    public static boolean validateAlgRS512(final byte[] signingInput, final RFC8017PublicKey key,
+                                           final byte[] signature) {
 
-        final byte[] expected = algRS512(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        return RFC8017.RSASSA_PKCS1_V15_VERIFY(key, signingInput, signature, FIPS180SHA512.INSTANCE);
     }
 
     /**
@@ -241,9 +225,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgES256(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algES256(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -269,9 +252,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgES384(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algES384(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -297,9 +279,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgES512(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algES512(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -325,9 +306,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgPS256(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algPS256(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -353,9 +333,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgPS384(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algPS384(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**
@@ -381,9 +360,8 @@ public enum RFC7518 {
      */
     public static boolean validateAlgPS512(final byte[] signingInput, final byte[] key, final byte[] signature) {
 
-        final byte[] expected = algPS512(signingInput, key);
-
-        return constantTimeCompare(expected, signature);
+        // FIXME
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     /**

@@ -6,6 +6,8 @@
  *         FIPS 180-4 (Secure Hash Standard)</a></li>
  * </ul>
  *
+ * TODO: FIPS 186-5 (DSS)
+ *
  * TODO: FIPS 202 (SHA-3)
  */
 package dev.mathops.text.fips;
