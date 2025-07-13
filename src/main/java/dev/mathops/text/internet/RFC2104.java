@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.HexFormat;
 
 /**
  * An implementation of <a href='https://www.rfc-editor.org/rfc/rfc2104'>RFC 2104 (HMAC: Keyed-Hashing for Message

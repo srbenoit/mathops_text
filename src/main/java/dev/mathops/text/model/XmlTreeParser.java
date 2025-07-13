@@ -56,9 +56,6 @@ public enum XmlTreeParser {
     public static ModelTreeNode parse(final char[] xml, final ETreeParserMode mode, final IModelTreeNodeFactory factory,
                                       final EDebugLevel debugLevel) throws ParsingException {
 
-        final EXmlContentMode xmlMode = mode == ETreeParserMode.ELEMENTS_ONLY ? EXmlContentMode.ELEMENTS_ONLY
-                : EXmlContentMode.TEXT_AND_ELEMENTS;
-
         final XmlContent content = new XmlContent(xml, mode == ETreeParserMode.ELEMENTS_ONLY, false);
 
         final IElement topLevel = content.getTopLevel();
