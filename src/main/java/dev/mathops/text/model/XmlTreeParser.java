@@ -74,8 +74,7 @@ public enum XmlTreeParser {
      * @return the node
      */
     private static ModelTreeNode nodeFromElement(final IElement elem, final ETreeParserMode mode,
-                                                 final ModelTreeNode parent,
-                                                 final IModelTreeNodeFactory factory,
+                                                 final ModelTreeNode parent, final IModelTreeNodeFactory factory,
                                                  final EDebugLevel debugLevel) {
 
         ModelTreeNode node = null;
@@ -83,12 +82,12 @@ public enum XmlTreeParser {
         final String tagName = elem.getTagName();
 
         try {
-            final Map<String, AttrKey<?>> attributeKeys = new HashMap<>(10);
-            node = factory.construct(tagName, parent, attributeKeys);
+            final AllowedAttributes allowedAttributes = new AllowedAttributes();
+            node = factory.construct(tagName, parent, allowedAttributes);
             node.map().put(XmlTreeWriter.TAG, tagName);
 
             // Extract all attributes and add to the model node (with String type)
-            if (attributeKeys.isEmpty()) {
+            if (allowedAttributes.isEmpty()) {
                 // Add all the attributes found, creating new String keys for each
                 for (final String attrName : elem.attributeNames()) {
                     final String value = elem.getStringAttr(attrName);
@@ -98,7 +97,7 @@ public enum XmlTreeParser {
             } else {
                 // Add only the attributes that match what the factory allows
                 for (final String attrName : elem.attributeNames()) {
-                    final AttrKey<?> key = attributeKeys.get(attrName);
+                    final AttrKey<?> key = allowedAttributes.get(attrName);
                     if (key == null) {
                         if (debugLevel.level < EDebugLevel.INFO.level) {
                             Log.warning("Attribute '", attrName, "' not supported in <", tagName,
