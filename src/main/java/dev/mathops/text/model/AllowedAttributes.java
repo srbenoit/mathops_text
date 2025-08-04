@@ -22,14 +22,18 @@ public final class AllowedAttributes {
     }
 
     /**
-     * Adds an attribute key.
+     * Adds attribute keys.
      *
-     * @param key the attribute key
+     * @param keys the attribute keys
      */
-    public void add(final AttrKey<?> key) {
+    public void add(final AttrKey<?>... keys) {
 
-        final String name = key.getName();
-        this.attributeKeys.put(name, key);
+        if (keys != null) {
+            for (final AttrKey<?> key : keys) {
+                final String name = key.getName();
+                this.attributeKeys.put(name, key);
+            }
+        }
     }
 
     /**
