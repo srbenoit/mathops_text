@@ -7,7 +7,7 @@ import dev.mathops.text.unicode.UnicodeCharacterSet;
 /**
  * Utilities for working with {@code Char}, as defined in XML 1.0 and XML 1.1.
  */
-enum XmlChars {
+public enum XmlChars {
     ;
 
     /** The ranges of characters valid as the first character of an encoding. */
@@ -49,7 +49,7 @@ enum XmlChars {
      *         point is only valid in XML 1.1; {@code EXmlVersion.NONE} if code point is not valid in any version of
      *         XML
      */
-    static boolean isChar(final int codePoint) {
+    public static boolean isChar(final int codePoint) {
 
         final UnicodeCharacter chr = UnicodeCharacterSet.getInstance().getCharacter(codePoint);
         final boolean ok;
@@ -72,7 +72,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if code point matches {@code S}
      */
-    static boolean isWhitespace(final int codePoint) {
+    public static boolean isWhitespace(final int codePoint) {
 
         return codePoint == SPACE || codePoint == TAB || codePoint == CR || codePoint == LF;
     }
@@ -83,7 +83,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if code point matches {@code NameStartChar}
      */
-    static boolean isNameStartChar(final int codePoint) {
+    public static boolean isNameStartChar(final int codePoint) {
 
         final int[][] ranges = {{(int) 'A', (int) 'Z'}, {(int) 'a', (int) 'z'}, {0xC0, 0xD6}, {0xD8, 0xF6},
                 {0xF8, 0x2FF}, {0x370, 0x37D}, {0x37F, 0x1FFF}, {0x200C, 0x200D}, {0x2070, 0x218F}, {0x2C00, 0x2FEF},
@@ -100,7 +100,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if code point matches {@code NameChar}
      */
-    static boolean isNameChar(final int codePoint) {
+    public static boolean isNameChar(final int codePoint) {
 
         final int[][] ranges = {{(int) '0', (int) '9'}, {0x300, 0x36f}, {0x203F, 0x2040}};
 
@@ -114,7 +114,7 @@ enum XmlChars {
      * @param chr the character to test
      * @return {@code true} if the character is valid; {@code false} if not
      */
-    static boolean isEncodingChar1(final char chr) {
+    public static boolean isEncodingChar1(final char chr) {
 
         return isInRanges((int) chr, ENCODING_1);
     }
@@ -125,7 +125,7 @@ enum XmlChars {
      * @param chr the character to test
      * @return {@code true} if the character is valid; {@code false} if not
      */
-    static boolean isEncodingChar2(final char chr) {
+    public static boolean isEncodingChar2(final char chr) {
 
         return isEncodingChar1(chr) || isDigit((int) chr) || "._-".indexOf((int) chr) != -1;
     }
@@ -136,7 +136,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if the character is a quote; {@code false} if not
      */
-    static boolean isQuote(final int codePoint) {
+    public static boolean isQuote(final int codePoint) {
 
         return codePoint == (int) '\'' || codePoint == (int) '\"';
     }
@@ -147,7 +147,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if the character is a digit; {@code false} if not
      */
-    static boolean isDigit(final int codePoint) {
+    public static boolean isDigit(final int codePoint) {
 
         final int[][] ranges = {{(int) '0', (int) '9'}};
 
@@ -160,7 +160,7 @@ enum XmlChars {
      * @param codePoint the code point to test
      * @return {@code true} if the character is a digit; {@code false} if not
      */
-    static boolean isHex(final int codePoint) {
+    public static boolean isHex(final int codePoint) {
 
         final int[][] ranges = {{(int) 'a', (int) 'f'}, {(int) 'A', (int) 'F'}};
 
