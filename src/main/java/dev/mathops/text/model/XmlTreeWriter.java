@@ -22,6 +22,7 @@ import dev.mathops.commons.model.DataKey;
 import dev.mathops.commons.model.ModelTreeNode;
 import dev.mathops.commons.model.StringParseException;
 import dev.mathops.commons.model.TypedKey;
+import dev.mathops.commons.model.TypedMap;
 import dev.mathops.commons.model.codec.BooleanCodec;
 import dev.mathops.commons.model.codec.StringCodec;
 import dev.mathops.text.builder.HtmlBuilder;
@@ -102,7 +103,7 @@ public enum XmlTreeWriter {
      *                                  of an unsupported type
      */
     public static void write(final ModelTreeNode root, final HtmlBuilder builder, final int indent,
-                             final EDebugLevel debugLevel, final Boolean inline) throws IllegalArgumentException {
+                             final EDebugLevel debugLevel, final Boolean inline) {
 
         if (root == null) {
             final String msg = Res.get(Res.NULL_NODE);
@@ -113,24 +114,37 @@ public enum XmlTreeWriter {
             throw new IllegalArgumentException(msg);
         }
 
-        Boolean effectiveInline;
+        final TypedMap rootMap = root.map();
 
+        Boolean effectiveInline;
         try {
-            final Boolean myInline = root.map().get(INLINE);
+            final Boolean myInline = rootMap.get(INLINE);
             effectiveInline = myInline == null ? inline : myInline;
         } catch (final StringParseException ex) {
             Log.warning(ex);
             effectiveInline = inline;
         }
 
-        if (!Boolean.TRUE.equals(effectiveInline) && indent > 0) {
+        try {
+            final String comment = rootMap.get(COMMENT);
+            if (comment != null) {
+                if (!Boolean.TRUE.equals(inline) && indent > 0) {
+                    doIndent(builder, indent);
+                }
+                builder.addln("<!-- ", comment, " -->");
+            }
+        } catch (final StringParseException ex) {
+            Log.warning(ex);
+        }
+
+        if (!Boolean.TRUE.equals(inline) && indent > 0) {
             doIndent(builder, indent);
         }
 
-        final String xmlTag = root.map().getString(TAG);
+        final String xmlTag = rootMap.getString(TAG);
         if (xmlTag == null) {
             // This is a text node - emit without a line break
-            final String textValue = root.map().getString(VALUE);
+            final String textValue = rootMap.getString(VALUE);
             if (textValue != null) {
                 final String escaped = XmlEscaper.escape(textValue);
                 builder.add(escaped);
@@ -143,9 +157,9 @@ public enum XmlTreeWriter {
 
             // Write all attributes (key names are guaranteed to be valid XML attribute names)
             final List<TypedKey<?>> keyList = new ArrayList<>(10);
-            root.map().getAttributeKeys(keyList);
+            rootMap.getAttributeKeys(keyList);
             for (final TypedKey<?> key : keyList) {
-                final String value = root.map().getString(key);
+                final String value = rootMap.getString(key);
                 if (value != null) {
                     final String escaped = XmlEscaper.escape(value);
                     builder.add(" ", key.getName(), "='", escaped, "'");
@@ -153,7 +167,7 @@ public enum XmlTreeWriter {
             }
 
             // See of there are child nodes...
-            ModelTreeNode child = root.map().getNode(ModelTreeNode.FIRST_CHILD);
+            ModelTreeNode child = rootMap.getNode(ModelTreeNode.FIRST_CHILD);
             if (child == null) {
                 builder.add("/>");
             } else {
@@ -189,7 +203,8 @@ public enum XmlTreeWriter {
      */
     private static void doIndent(final HtmlBuilder builder, final int indent) {
 
-        for (int i = 0; i < indent; ++i) {
+        final int count = 2 * indent;
+        for (int i = 0; i < count; ++i) {
             builder.add(SPC);
         }
     }

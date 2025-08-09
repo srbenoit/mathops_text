@@ -1,4 +1,4 @@
-package dev.mathops.text.parser;
+package dev.mathops.text.model;
 
 import java.util.ArrayList;
 import java.util.List;

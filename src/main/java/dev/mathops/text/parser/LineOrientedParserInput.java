@@ -3,6 +3,7 @@ package dev.mathops.text.parser;
 import dev.mathops.commons.CoreConstants;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -10,7 +11,7 @@ import java.util.List;
  * messages relative to line numbers and column offsets, rather than as simple character offsets from the beginning of a
  * file.
  */
-public final class LineOrientedParserInput  {
+public final class LineOrientedParserInput {
 
     /** A newline character. */
     private static final int NEWLINE = (int) '\n';
@@ -49,26 +50,32 @@ public final class LineOrientedParserInput  {
      * @param s    the string
      * @param list the list
      */
-    private static void accumulateLines(final String s, final List<? super String> list) {
+    private static void accumulateLines(final String s, final Collection<? super String> list) {
 
         int start = 0;
-        int index = s.indexOf(NEWLINE);
+        int newline = s.indexOf(NEWLINE);
 
-        while (index > -1) {
-            if (index == start) {
+        while (newline > -1) {
+            if (newline == start) {
                 list.add(CoreConstants.EMPTY);
                 ++start;
-            } else if ((int) s.charAt(index - 1) == CARRIAGE_RETURN) {
-                final String sub = s.substring(start, index - 1);
+            } else if ((int) s.charAt(newline - 1) == CARRIAGE_RETURN) {
+                final String sub = s.substring(start, newline - 1);
                 list.add(sub);
-                start = index + 2;
+                start = newline + 1;
             } else {
-                final String sub = s.substring(start, index);
+                final String sub = s.substring(start, newline);
                 list.add(sub);
-                start = index + 1;
+                start = newline + 1;
             }
 
-            index = s.indexOf(NEWLINE, start);
+            newline = s.indexOf(NEWLINE, start);
+        }
+
+        final int len = s.length();
+        if (start < len) {
+            final String sub = s.substring(start);
+            list.add(sub);
         }
     }
 
@@ -109,7 +116,7 @@ public final class LineOrientedParserInput  {
         final StringBuilder builder = new StringBuilder(totalLen);
         for (final String s : this.lines) {
             builder.append(s);
-            builder.append(NEWLINE);
+            builder.append((char) NEWLINE);
         }
 
         return builder.toString();
@@ -131,8 +138,8 @@ public final class LineOrientedParserInput  {
         final StringBuilder builder = new StringBuilder(totalLen);
         for (final String s : this.lines) {
             builder.append(s);
-            builder.append(CARRIAGE_RETURN);
-            builder.append(NEWLINE);
+            builder.append((char) CARRIAGE_RETURN);
+            builder.append((char) NEWLINE);
         }
 
         return builder.toString();

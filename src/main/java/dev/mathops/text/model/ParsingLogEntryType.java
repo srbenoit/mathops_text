@@ -1,4 +1,4 @@
-package dev.mathops.text.parser;
+package dev.mathops.text.model;
 
 /**
  * Possible types of log entry.

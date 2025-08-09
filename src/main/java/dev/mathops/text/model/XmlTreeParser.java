@@ -29,8 +29,6 @@ import dev.mathops.text.builder.HtmlBuilder;
 import dev.mathops.text.builder.SimpleBuilder;
 import dev.mathops.text.parser.LineOrientedParserInput;
 import dev.mathops.text.parser.ParsingException;
-import dev.mathops.text.parser.ParsingLog;
-import dev.mathops.text.parser.ParsingLogEntryType;
 import dev.mathops.text.parser.xml.CData;
 import dev.mathops.text.parser.xml.EmptyElement;
 import dev.mathops.text.parser.xml.IElement;
@@ -270,9 +268,13 @@ public final class XmlTreeParser {
      * @param log   a log to which to add parsing errors, warnings, and messages
      * @return the root element if parsing was successful; {@code null} if not
      */
-    public ModelTreeNode parseXml(final LineOrientedParserInput input, final ParsingLog log) {
+    public static ModelTreeNode parseXml(final LineOrientedParserInput input, final ParsingLog log) {
+
+        final XmlTreeParser parser = new XmlTreeParser();
 
         final int numLines = input.getNumLines();
+
+        ESuccessFailure status = ESuccessFailure.SUCCESS;
 
         outer:
         for (int line = 0; line < numLines; ++line) {
@@ -281,23 +283,26 @@ public final class XmlTreeParser {
             final int last = content.length() - 1;
             for (int col = 0; col <= last; ++col) {
                 final int cp = (int) content.charAt(col);
-                if (processCharacter(line, col, cp, col == last, log) == ESuccessFailure.FAILURE) {
+                status = parser.processCharacter(line, col, cp, col == last, log);
+                if (status == ESuccessFailure.FAILURE) {
                     // Parser cannot recover from error - abort parsing
                     break outer;
                 }
             }
         }
 
-        if (this.state != EParseState.AWAITING_ELEMENT) {
-            final String last = input.getLine(numLines - 1);
-            final int len = last.length();
-            final String msg = Res.get(Res.UNEXPECTED_EOF);
-            log.add(ParsingLogEntryType.ERROR, numLines - 1, len, msg);
-        } else if (this.root == null) {
-            log.add(ParsingLogEntryType.ERROR, 0, 0, "No element found in XML file");
+        if (status == ESuccessFailure.SUCCESS) {
+            if (parser.state != EParseState.AWAITING_ELEMENT) {
+                final String last = input.getLine(numLines - 1);
+                final int len = last.length();
+                final String msg = Res.get(Res.UNEXPECTED_EOF);
+                log.add(ParsingLogEntryType.ERROR, numLines - 1, len, msg);
+            } else if (parser.root == null) {
+                log.add(ParsingLogEntryType.ERROR, 0, 0, "No element found in XML file");
+            }
         }
 
-        return this.root;
+        return parser.root;
     }
 
     /**
@@ -372,6 +377,7 @@ public final class XmlTreeParser {
                 log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '<'.");
                 result = ESuccessFailure.FAILURE;
             } else {
+                Log.info("Entering CDATA");
                 this.cdata.reset();
                 this.cdata.appendChar((char) cp);
                 this.state = EParseState.CDATA;
@@ -411,6 +417,7 @@ public final class XmlTreeParser {
                     log.add(ParsingLogEntryType.ERROR, line, col, "'<!' must be followed by '--', to start a comment.");
                     result = ESuccessFailure.FAILURE;
                 } else {
+                    Log.info("Entering CDATA 2");
                     this.cdata.reset();
                     this.cdata.add("<!");
                     this.state = EParseState.CDATA;
@@ -444,6 +451,7 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '?', '!', or an element name.");
             result = ESuccessFailure.FAILURE;
         } else {
+            Log.info("Entering CDATA 3");
             this.cdata.reset();
             this.cdata.appendChar((char) LEFT_ANGLE_BRACKET);
             this.cdata.appendChar((char) cp);
@@ -462,6 +470,8 @@ public final class XmlTreeParser {
      */
     private void createElement(final String tag) {
 
+//        Log.info("Creating element with tag '", tag, "'");
+
         final ModelTreeNode newElement = new ModelTreeNode();
         final TypedMap map = newElement.map();
         map.put(XmlTreeWriter.TAG, tag);
@@ -477,6 +487,25 @@ public final class XmlTreeParser {
         }
 
         this.elementStack.add(newElement);
+    }
+
+    /**
+     * Adds an attribute to the active element using the stored pending attribute name.
+     *
+     * @param value the attribute value
+     */
+    private void addAttr(final String value) {
+
+        final String unescaped = XmlEscaper.unescape(value);
+//        Log.info("Setting attribute '", this.pendingAttrName, "' to '", unescaped, "'");
+
+        final ModelTreeNode activeElement = this.elementStack.getLast();
+
+        final AttrKey<String> key = new AttrKey<>(this.pendingAttrName, StringCodec.INST);
+        this.pendingAttrName = null;
+
+        final TypedMap map = activeElement.map();
+        map.put(key, unescaped);
     }
 
     /**
@@ -536,6 +565,7 @@ public final class XmlTreeParser {
                             "Start of XML comment is missing second '-' character.");
                     result = ESuccessFailure.FAILURE;
                 } else {
+                    Log.info("Entering CDATA 4");
                     this.cdata.reset();
                     this.cdata.add("<!-");
                     this.state = EParseState.CDATA;
@@ -550,6 +580,7 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '<!--' to begin a comment.");
             result = ESuccessFailure.FAILURE;
         } else {
+            Log.info("Entering CDATA 5");
             this.cdata.reset();
             this.cdata.add("<!");
             this.cdata.appendChar((char) cp);
@@ -587,6 +618,7 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '<!--' to begin a comment.");
             result = ESuccessFailure.FAILURE;
         } else {
+            Log.info("Entering CDATA 6");
             this.cdata.reset();
             this.cdata.add("<!-");
             this.cdata.appendChar((char) cp);
@@ -609,6 +641,8 @@ public final class XmlTreeParser {
         if (cp == DASH && !lastInLine) {
             this.state = EParseState.COMMENT_END1;
             this.accumulator.appendChar((char) DASH);
+        } else {
+            this.accumulator.appendChar((char) cp);
         }
     }
 
@@ -636,6 +670,8 @@ public final class XmlTreeParser {
 
         if (cp == RIGHT_ANGLE_BRACKET) {
             final String commentTextWithDashes = this.accumulator.toString();
+            Log.info("Comment text is '", commentTextWithDashes, "'");
+            this.accumulator.reset();
             final int len = commentTextWithDashes.length();
             final String commentText = commentTextWithDashes.substring(0, len - 2).trim();
             final String unescaped = XmlEscaper.unescape(commentText);
@@ -756,17 +792,7 @@ public final class XmlTreeParser {
         ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         if (cp == RIGHT_ANGLE_BRACKET) {
-            // The element is closed - pop it from the stack and return to awaiting the next element)
-            final ModelTreeNode finished = this.elementStack.removeLast();
-            if (this.elementStack.isEmpty()) {
-                // This was the ROOT element
-                if (this.root == null) {
-                    this.root = finished;
-                } else {
-                    log.add(ParsingLogEntryType.ERROR, line, col, "Document may have only one root element.");
-                    result = ESuccessFailure.FAILURE;
-                }
-            }
+            result = closeElementAndStoreRoot(line, col, log);
             this.state = EParseState.AWAITING_ELEMENT;
         } else {
             log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting '>'.");
@@ -789,7 +815,7 @@ public final class XmlTreeParser {
      */
     private void doCData(final int line, final int col, final int cp, final boolean lastInLine, final ParsingLog log) {
 
-        if (cp == RIGHT_ANGLE_BRACKET && !lastInLine) {
+        if (cp == LEFT_ANGLE_BRACKET && !lastInLine) {
             final String content = this.cdata.toString();
             this.cdata.reset();
             final String unescaped = XmlEscaper.unescape(content);
@@ -918,11 +944,7 @@ public final class XmlTreeParser {
         if (cp == this.attrValueQuote) {
             final String value = this.accumulator.toString();
             this.accumulator.reset();
-            final String unescaped = XmlEscaper.unescape(value);
-            final ModelTreeNode activeElement = this.elementStack.getLast();
-            final AttrKey<String> key = new AttrKey<>(this.pendingAttrName, StringCodec.INST);
-            final TypedMap map = activeElement.map();
-            map.put(key, unescaped);
+            addAttr(value);
             this.state = EParseState.ELEMENT_AWAITING_ATTR;
         } else if (cp == LEFT_ANGLE_BRACKET) {
             // This is bad XML, but we warn and accumulate it anyway
@@ -953,18 +975,29 @@ public final class XmlTreeParser {
 
         ESuccessFailure result = ESuccessFailure.SUCCESS;
 
-        if (XmlChars.isNameStartChar(cp)) {
+        if (this.accumulator.length() == 0) {
+            // First character after '/' must be Name Start (which could be the whole name - the closing '>' is
+            // allowed to be on a subsequent line)
+            if (XmlChars.isNameStartChar(cp)) {
+                this.accumulator.appendChar((char) cp);
+                if (lastInLine) {
+                    this.state = EParseState.ELEMENT_END_TAG_CLOSE;
+                }
+            } else {
+                log.add(ParsingLogEntryType.ERROR, line, col,
+                        "Unexpected character, expecting name of element being closed.");
+                result = ESuccessFailure.FAILURE;
+            }
+        } else if (cp == RIGHT_ANGLE_BRACKET) {
+            result = processRightBracketAtEndOfEndTag(line, col, log);
+        } else if (XmlChars.isNameChar(cp)) {
             this.accumulator.appendChar((char) cp);
             if (lastInLine) {
-                this.pendingAttrName = this.accumulator.toString();
-                this.accumulator.reset();
                 this.state = EParseState.ELEMENT_END_TAG_CLOSE;
-            } else {
-
             }
         } else {
             log.add(ParsingLogEntryType.ERROR, line, col,
-                    "Unexpected character, expecting name of element being closed.");
+                    "Unexpected character in name of element being closed.");
             result = ESuccessFailure.FAILURE;
         }
 
@@ -988,27 +1021,93 @@ public final class XmlTreeParser {
         ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         if (cp == RIGHT_ANGLE_BRACKET) {
-            final String tag = this.accumulator.toString();
-            final ModelTreeNode activeElement = this.elementStack.getLast();
-            final TypedMap map = activeElement.map();
-
-            try {
-                final String activeTag = map.get(XmlTreeWriter.TAG);
-
-                if (tag.equals(activeTag)) {
-                    this.elementStack.removeLast();
-                } else {
-                    log.add(ParsingLogEntryType.ERROR, line, col,
-                            "Name in closing tag does not match name of active element (" + activeTag + ").");
-                    result = ESuccessFailure.FAILURE;
-                }
-            } catch (final StringParseException ex) {
-                log.add(ParsingLogEntryType.ERROR, line, col, "Parser error retrieving tag of active element.");
-                result = ESuccessFailure.FAILURE;
-            }
+            result = processRightBracketAtEndOfEndTag(line, col, log);
         } else if (!XmlChars.isWhitespace(cp)) {
             log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '>'.");
             result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Performs processing when a '&gt;' has been detected at the end of an "end tag" like "&lt;/p&gt;".
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure processRightBracketAtEndOfEndTag(final int line, final int col, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        final String tag = this.accumulator.toString();
+        this.accumulator.reset();
+        final ModelTreeNode activeElement = this.elementStack.getLast();
+        final TypedMap map = activeElement.map();
+
+        try {
+            final String activeTag = map.get(XmlTreeWriter.TAG);
+
+            if (tag.equals(activeTag)) {
+                result = closeElementAndStoreRoot(line, col, log);
+                this.state = EParseState.AWAITING_ELEMENT;
+            } else {
+                log.add(ParsingLogEntryType.ERROR, line, col,
+                        "Name in closing tag does not match name of active element (" + activeTag + ").");
+                result = ESuccessFailure.FAILURE;
+            }
+        } catch (final StringParseException ex) {
+            log.add(ParsingLogEntryType.ERROR, line, col, "Parser error retrieving tag of active element.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Removes the active element from the element stack, and if that was the last element on the stack, stores the
+     * removed element as the "root" element of the document.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure closeElementAndStoreRoot(final int line, final int col, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        final ModelTreeNode finished = this.elementStack.removeLast();
+        Log.info("Closed element - " + this.elementStack.size() + " remain");
+
+        // If the element consists of only CDATA nodes, mark it as "inline"
+        boolean cDataOnly = true;
+        ModelTreeNode child = finished.getFirstChild();
+        while (child != null) {
+            final TypedMap childMap = child.map();
+            if (childMap.containsKey(XmlTreeWriter.TAG)) {
+                cDataOnly = false;
+                break;
+            }
+            child = child.getNextSibling();
+        }
+
+        if (cDataOnly) {
+            final TypedMap map = finished.map();
+            map.put(XmlTreeWriter.INLINE, Boolean.TRUE);
+        }
+
+        if (this.elementStack.isEmpty()) {
+            if (this.root == null) {
+                this.root = finished;
+            } else {
+                log.add(ParsingLogEntryType.ERROR, line, col, "Document may have only one root element.");
+                result = ESuccessFailure.FAILURE;
+            }
         }
 
         return result;
