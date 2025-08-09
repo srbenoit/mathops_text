@@ -43,8 +43,8 @@ public final class ParsingLog {
      * @param endCol    the 0-based column index of the last character of marked content
      * @param message   the message
      */
-    public void add(ParsingLogEntryType type, int startLine, int startCol, int endLine, int endCol,
-                    String message) {
+    public void add(final ParsingLogEntryType type, final int startLine, final int startCol, final int endLine,
+                    final int endCol, final String message) {
 
         final ParsingLogEntry entry = new ParsingLogEntry(type, startLine, startCol, endLine, endCol, message);
 
@@ -59,7 +59,7 @@ public final class ParsingLog {
      * @param col     the 0-based column index of the only character of marked content
      * @param message the message
      */
-    public void add(ParsingLogEntryType type, int line, int col, String message) {
+    public void add(final ParsingLogEntryType type, final int line, final int col, final String message) {
 
         final ParsingLogEntry entry = new ParsingLogEntry(type, line, col, line, col, message);
 

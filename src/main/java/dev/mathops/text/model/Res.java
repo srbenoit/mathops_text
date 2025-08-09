@@ -31,7 +31,7 @@ final class Res extends ResBundle {
     static final String NULL_BUILDER = key(2);
 
     /** A resource key. */
-    static final String UNSUPPORTED_NODE_TYPE = key(3);
+    static final String UNEXPECTED_EOF = key(2);
 
     //
 
@@ -39,7 +39,8 @@ final class Res extends ResBundle {
     private static final String[][] EN_US = {
             {NULL_NODE, "Node to write may not be null"},
             {NULL_BUILDER, "Builder may not be null"},
-            {UNSUPPORTED_NODE_TYPE, "Unsupported tree node type"},
+            {UNEXPECTED_EOF, "Unexpected end of file."},
+
     };
 
     /** The singleton instance. */

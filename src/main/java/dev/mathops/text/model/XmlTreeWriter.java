@@ -62,6 +62,9 @@ public enum XmlTreeWriter {
     /** The key of the content value that defines the text node content. */
     public static final DataKey<String> VALUE = new DataKey<>("value", StringCodec.INST);
 
+    /** The key of the content value that defines a comment associated with an XML element. */
+    public static final DataKey<String> COMMENT = new DataKey<>("comment", StringCodec.INST);
+
     /** A flag that causes an element to be emitted without newlines or indentation. */
     public static final DataKey<Boolean> INLINE = new DataKey<>("inline", BooleanCodec.INST);
 

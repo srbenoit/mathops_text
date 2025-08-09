@@ -15,13 +15,18 @@
 
 package dev.mathops.text.model;
 
+import dev.mathops.commons.CoreConstants;
+import dev.mathops.commons.ESuccessFailure;
 import dev.mathops.commons.log.EDebugLevel;
 import dev.mathops.commons.log.Log;
 import dev.mathops.commons.model.AttrKey;
 import dev.mathops.commons.model.EAllowedChildren;
 import dev.mathops.commons.model.ModelTreeNode;
+import dev.mathops.commons.model.StringParseException;
+import dev.mathops.commons.model.TypedMap;
 import dev.mathops.commons.model.codec.StringCodec;
 import dev.mathops.text.builder.HtmlBuilder;
+import dev.mathops.text.builder.SimpleBuilder;
 import dev.mathops.text.parser.LineOrientedParserInput;
 import dev.mathops.text.parser.ParsingException;
 import dev.mathops.text.parser.ParsingLog;
@@ -33,6 +38,7 @@ import dev.mathops.text.parser.xml.INode;
 import dev.mathops.text.parser.xml.NonemptyElement;
 import dev.mathops.text.parser.xml.XmlChars;
 import dev.mathops.text.parser.xml.XmlContent;
+import dev.mathops.text.parser.xml.XmlEscaper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,19 +103,43 @@ public final class XmlTreeParser {
     /** A character used in XML. */
     private static final int BANG = (int) '!';
 
+    /** A character used in XML. */
+    private static final int SLASH = (int) '/';
+
+    /** A character used in XML. */
+    private static final int EQ = (int) '=';
+
+    /** A character used in XML. */
+    private static final int TICK = (int) '\'';
+
+    /** A character used in XML. */
+    private static final int QUOTE = (int) '"';
+
+    /** A character used in XML. */
+    private static final int AND = (int) '&';
+
     /** The current state. */
     private EParseState state;
 
-    /** An accumulator for text. */
+    /** An accumulator for names, attribute values, comment content. */
     private final HtmlBuilder accumulator;
 
-    /** Comments pending attachment to the next element found. */
-    private final List<String> pendingComments;
+    /** An accumulator for CDATA. */
+    private final HtmlBuilder cdata;
+
+    /** A comment pending attachment to the next element found. */
+    private String pendingComment = null;
+
+    /** The name of the pending attribute. */
+    private String pendingAttrName = null;
+
+    /** The quote code point surrounding the current attribute value. */
+    private int attrValueQuote = 0;
 
     /** A stack of elements from the root down to the currently open element. */
     private final List<ModelTreeNode> elementStack;
 
-    /** The root node of the successfully parsed model tree. */
+    /** The root element. */
     private ModelTreeNode root = null;
 
     /**
@@ -117,9 +147,10 @@ public final class XmlTreeParser {
      */
     private XmlTreeParser() {
 
-        this.state = EParseState.PROLOG_START;
+        this.state = EParseState.AWAITING_ELEMENT;
         this.accumulator = new HtmlBuilder(30);
-        this.pendingComments = new ArrayList<>(3);
+        this.cdata = new HtmlBuilder(100);
+        this.elementStack = new ArrayList<>(10);
     }
 
     /**
@@ -143,40 +174,6 @@ public final class XmlTreeParser {
     }
 
     /**
-     * Attempts to parse XML content into a model tree node.
-     *
-     * @param input            the input to parse
-     * @param ignoreWhitespace {@code true} to ignore inter-element whitespace; {@code false} to parse inter-element
-     *                         whitespace as CDATA objects
-     * @param preserveComments {@code true} to preserve comments (comments found are associated with the element found
-     *                         after the comment and are stored in that element object; comments after the last element
-     *                         in the document will be discarded); {@code false} to ignore comments;
-     * @param log              a log to which to add parsing errors, warnings, and messages
-     * @return the root element if parsing was successful; {@code null} if not
-     */
-    public ModelTreeNode parse(final LineOrientedParserInput input, final boolean ignoreWhitespace,
-                               final boolean preserveComments, final ParsingLog log) {
-
-        final int numLines = input.getNumLines();
-
-        outer:
-        for (int l = 0; l < numLines; ++l) {
-            final String line = input.getLine(l);
-
-            final int last = line.length() - 1;
-            for (int c = 0; c <= last; ++c) {
-                final int ch = (int) line.charAt(c);
-                if (processCharacter(l, c, ch, c == last, ignoreWhitespace, preserveComments, log)) {
-                    // Parser cannot recover from error - abort parsing
-                    break outer;
-                }
-            }
-        }
-
-        return getRootNode();
-    }
-
-    /**
      * Constructs a node from an XML element.
      *
      * @param elem       the XML element
@@ -197,7 +194,9 @@ public final class XmlTreeParser {
         try {
             final AllowedAttributes allowedAttributes = new AllowedAttributes();
             node = factory.construct(tagName, parent, allowedAttributes);
-            node.map().put(XmlTreeWriter.TAG, tagName);
+
+            final TypedMap map = node.map();
+            map.put(XmlTreeWriter.TAG, tagName);
 
             // Extract all attributes and add to the model node (with String type)
             if (allowedAttributes.isEmpty()) {
@@ -205,7 +204,7 @@ public final class XmlTreeParser {
                 for (final String attrName : elem.attributeNames()) {
                     final String value = elem.getStringAttr(attrName);
                     final AttrKey<String> key = new AttrKey<>(attrName, StringCodec.INST);
-                    node.map().put(key, value);
+                    map.put(key, value);
                 }
             } else {
                 // Add only the attributes that match what the factory allows
@@ -218,7 +217,7 @@ public final class XmlTreeParser {
                         }
                     } else {
                         final String value = elem.getStringAttr(attrName);
-                        node.map().putString(key, value);
+                        map.putString(key, value);
                     }
                 }
             }
@@ -239,7 +238,8 @@ public final class XmlTreeParser {
                         if (allowed == EAllowedChildren.ELEMENT_AND_DATA || allowed == EAllowedChildren.DATA) {
                             innerNode = new ModelTreeNode();
                             final String content = cdata.getContent();
-                            innerNode.map().put(XmlTreeWriter.VALUE, content);
+                            final TypedMap innerMap = innerNode.map();
+                            innerMap.put(XmlTreeWriter.VALUE, content);
                         } else if (debugLevel.level < EDebugLevel.INFO.level) {
                             final String content = cdata.getContent();
                             if (content != null && !content.isBlank()) {
@@ -264,143 +264,247 @@ public final class XmlTreeParser {
     }
 
     /**
+     * Attempts to parse XML content into a model tree node.
+     *
+     * @param input the input to parse
+     * @param log   a log to which to add parsing errors, warnings, and messages
+     * @return the root element if parsing was successful; {@code null} if not
+     */
+    public ModelTreeNode parseXml(final LineOrientedParserInput input, final ParsingLog log) {
+
+        final int numLines = input.getNumLines();
+
+        outer:
+        for (int line = 0; line < numLines; ++line) {
+            final String content = input.getLine(line);
+
+            final int last = content.length() - 1;
+            for (int col = 0; col <= last; ++col) {
+                final int cp = (int) content.charAt(col);
+                if (processCharacter(line, col, cp, col == last, log) == ESuccessFailure.FAILURE) {
+                    // Parser cannot recover from error - abort parsing
+                    break outer;
+                }
+            }
+        }
+
+        if (this.state != EParseState.AWAITING_ELEMENT) {
+            final String last = input.getLine(numLines - 1);
+            final int len = last.length();
+            final String msg = Res.get(Res.UNEXPECTED_EOF);
+            log.add(ParsingLogEntryType.ERROR, numLines - 1, len, msg);
+        } else if (this.root == null) {
+            log.add(ParsingLogEntryType.ERROR, 0, 0, "No element found in XML file");
+        }
+
+        return this.root;
+    }
+
+    /**
      * Processes a single character of input.
      *
-     * @param line             the line number
-     * @param ch               the character
-     * @param lastInLine       true if the character is the last in a line of input text
-     * @param ignoreWhitespace {@code true} to ignore inter-element whitespace; {@code false} to parse inter-element
-     *                         whitespace as CDATA objects
-     * @param preserveComments {@code true} to preserve comments (comments found are associated with the element found
-     *                         after the comment and are stored in that element object; comments after the last element
-     *                         in the document will be discarded); {@code false} to ignore comments;
-     * @param log              a log to which to add parsing errors, warnings, and messages
-     * @return {@code true} to abort the parsing process (an error will have been added to the log);{@code false} if
-     *         parsing can continue
+     * @param line       the line number
+     * @param cp         the code point
+     * @param lastInLine true if the character is the last in a line of input text
+     * @param log        a log to which to add parsing errors, warnings, and messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    private boolean processCharacter(final int line, final int col, final int ch, final boolean lastInLine,
-                                     final boolean ignoreWhitespace, final boolean preserveComments,
-                                     final ParsingLog log) {
+    private ESuccessFailure processCharacter(final int line, final int col, final int cp, final boolean lastInLine,
+                                             final ParsingLog log) {
 
-        boolean abort = false;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         switch (this.state) {
-            case PROLOG_START -> abort = doPrologStart(line, col, ch, lastInLine, log);
-            case PROLOG_OPEN_ANGLE -> abort = doPrologOpenAngle(line, col, ch, lastInLine, log);
-            case XML_DECL -> doXmlDecl(ch, lastInLine);
-            case XML_DECL_CLOSE -> doXmlDeclClose(ch);
-            case START_COMMENT -> abort = doStartComment(line, col, ch, lastInLine, log);
-            case COMMENT_DASH -> abort = doCommentDash(line, col, ch, log);
-            case COMMENT -> doComment(ch, lastInLine);
-            case COMMENT_END1 -> doCommentEnd1(ch, lastInLine);
-            case COMMENT_END2 -> abort = doCommentEnd2(line, col, ch, log);
-            case ELEMENT_NAME -> {
-            }
+            case AWAITING_ELEMENT -> result = doAwaitingElement(line, col, cp, lastInLine, log);
+            case AWAITING_ELEMENT_OPEN_ANGLE -> result = doAwaitingElementOpenAngle(line, col, cp, lastInLine, log);
+            case PI -> doPI(cp, lastInLine);
+            case PI_CLOSE -> doPIClose(cp);
+            case START_COMMENT -> result = doStartComment(line, col, cp, lastInLine, log);
+            case COMMENT_DASH -> result = doCommentDash(line, col, cp, log);
+            case COMMENT -> doComment(cp, lastInLine);
+            case COMMENT_END1 -> doCommentEnd1(cp, lastInLine);
+            case COMMENT_END2 -> doCommentEnd2(cp);
+            case ELEMENT_NAME -> result = doElementName(line, col, cp, lastInLine, log);
+            case ELEMENT_AWAITING_ATTR -> result = doElementAwaitingAttr(line, col, cp, log);
+            case CLOSING_EMPTY_ELEMENT -> result = doClosingEmptyElement(line, col, cp, log);
+            case CDATA -> doCData(line, col, cp, lastInLine, log);
+            case ATTR_NAME -> result = doAttrName(line, col, cp, lastInLine, log);
+            case AWAIT_ATTR_EQ -> result = doAwaitAttrEq(line, col, cp, log);
+            case AWAIT_ATTR_VALUE -> result = doAwaitAttrValue(line, col, cp, log);
+            case ATTR_VALUE -> doAttrValue(line, col, cp, log);
+            case ELEMENT_END_TAG -> result = doElementEndTag(line, col, cp, lastInLine, log);
+            case ELEMENT_END_TAG_CLOSE -> result = doElementEndTagClose(line, col, cp, log);
         }
 
-        return abort;
+        return result;
     }
 
     /**
-     * Processes a character in the PROLOG_START state.  Valid characters are whitespace (which does not change state),
-     * or '<' that is not the last character in a line, which could be the start of an XMLDecl, a comment, or an
-     * element, and which changes state to PROLOG_OPEN_ANGLE.
+     * Processes a character in the AWAITING_ELEMENT state.  Valid characters are whitespace (which does not change
+     * state), a '<' that is not the last character in a line, which could be the start of a PI, a comment, or an
+     * element, and which changes state to AWAITING_ELEMENT_OPEN_ANGLE, or (if CDATA is allowed), the first character of
+     * a CDATA run.
      *
      * @param line       the line index
      * @param col        the column index
-     * @param ch         the character
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    private boolean doPrologStart(final int line, final int col, final int ch, final boolean lastInLine,
-                                  final ParsingLog log) {
+    private ESuccessFailure doAwaitingElement(final int line, final int col, final int cp, final boolean lastInLine,
+                                              final ParsingLog log) {
 
-        boolean abort = false;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
 
-        if (ch == LEFT_ANGLE_BRACKET) {
+        if (cp == LEFT_ANGLE_BRACKET) {
             if (lastInLine) {
-                log.add(ParsingLogEntryType.ERROR, line, col,
-                        "'<' must be followed by '?', '!', or an element name.");
-                abort = true;
+                log.add(ParsingLogEntryType.ERROR, line, col, "'<' must be followed by '?', '!', or an element name.");
+                result = ESuccessFailure.FAILURE;
             } else {
-                this.state = EParseState.PROLOG_OPEN_ANGLE;
+                this.state = EParseState.AWAITING_ELEMENT_OPEN_ANGLE;
             }
-        } else if (!XmlChars.isWhitespace(ch)) {
-            log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '<'.");
-            abort = true;
+        } else if (!XmlChars.isWhitespace(cp)) {
+            if (this.elementStack.isEmpty()) {
+                // CDATA is not allowed outside the root element
+                log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '<'.");
+                result = ESuccessFailure.FAILURE;
+            } else {
+                this.cdata.reset();
+                this.cdata.appendChar((char) cp);
+                this.state = EParseState.CDATA;
+            }
         }
 
-        return abort;
+        return result;
     }
 
     /**
-     * Processes a character in the PROLOG_OPEN_ANGLE state.  Valid characters are '?' (starts an XMLDecl, and changes
-     * state to XML_DECL), '!' (starts a comment, and changes state to PROLOG_START_COMMENT) or a Name Start character
-     * (which starts an element, and changes state to ELEMENT_NAME).
+     * Processes a character in the AWAITING_ELEMENT_OPEN_ANGLE state.  Valid characters are '?' (starts a PI, and
+     * changes state to PI), '!' (starts a comment, and changes state to PROLOG_START_COMMENT) or a Name Start character
+     * (which starts an element, and changes state to ELEMENT_NAME (or ELEMENT_AWAITING_ATTR if the name start character
+     * was at the end of its line).  If any other character is found, the '&lt;' and that character are treated as CDATA
+     * (if allowed) or an error (if not).
      *
      * @param line       the line index
      * @param col        the column index
-     * @param ch         the character
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    private boolean doPrologOpenAngle(final int line, final int col, final int ch, final boolean lastInLine,
-                                      final ParsingLog log) {
+    private ESuccessFailure doAwaitingElementOpenAngle(final int line, final int col, final int cp,
+                                                       final boolean lastInLine, final ParsingLog log) {
 
-        boolean abort = false;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
 
-        if (ch == QUESTION_MARK) {
+        if (cp == QUESTION_MARK) {
             // NOTE: This can fall at the end of a line, and we still scan for the closure.
-            this.state = EParseState.XML_DECL;
-        } else if (ch == BANG) {
+            this.state = EParseState.PI;
+        } else if (cp == BANG) {
             if (lastInLine) {
-                log.add(ParsingLogEntryType.ERROR, line, col, "'<!' must be followed by '--', to start a comment.");
-                abort = true;
+                if (this.elementStack.isEmpty()) {
+                    // CDATA is not allowed outside the root element
+                    log.add(ParsingLogEntryType.ERROR, line, col, "'<!' must be followed by '--', to start a comment.");
+                    result = ESuccessFailure.FAILURE;
+                } else {
+                    this.cdata.reset();
+                    this.cdata.add("<!");
+                    this.state = EParseState.CDATA;
+                    log.add(ParsingLogEntryType.WARNING, line, col - 1, "'<' should be escaped in character data.");
+                }
             } else {
                 this.state = EParseState.START_COMMENT;
             }
-        } else if (XmlChars.isNameStartChar(ch)) {
-            this.accumulator.appendChar((char) ch);
+        } else if (cp == SLASH && !lastInLine) {
+            // This is a "</..." closing tag of a nonempty element
+            if (this.elementStack.isEmpty()) {
+                log.add(ParsingLogEntryType.ERROR, line, col, line, col - 1, "No open element to close.");
+                result = ESuccessFailure.FAILURE;
+            } else {
+                this.accumulator.reset();
+                this.state = EParseState.ELEMENT_END_TAG;
+            }
+        } else if (XmlChars.isNameStartChar(cp)) {
             if (lastInLine) {
                 // The linefeed counts as whitespace to close the element name
-                // TODO: The state after an element name is accumulated, looking for attributes or '>'
+                final String tag = Character.toString(cp);
+                createElement(tag);
+                this.state = EParseState.ELEMENT_AWAITING_ATTR;
             } else {
+                this.accumulator.appendChar((char) cp);
                 this.state = EParseState.ELEMENT_NAME;
             }
-        } else {
+        } else if (this.elementStack.isEmpty()) {
+            // CDATA is not allowed outside the root element
             log.add(ParsingLogEntryType.ERROR, line, col,
                     "Unexpected character, expecting '?', '!', or an element name.");
-            abort = true;
+            result = ESuccessFailure.FAILURE;
+        } else {
+            this.cdata.reset();
+            this.cdata.appendChar((char) LEFT_ANGLE_BRACKET);
+            this.cdata.appendChar((char) cp);
+            this.state = EParseState.CDATA;
+            log.add(ParsingLogEntryType.WARNING, line, col - 1, "'<' should be escaped in character data.");
         }
 
-        return abort;
+        return result;
     }
 
     /**
-     * Processes a character in the XML_DECL state.  Any character is valid here, but '?' (not at the end of a line)
-     * moves to the XML_DECL_CLOSE state.
+     * Creates a new element, adds it as a child to the currently active element, and makes the new element the
+     * currently active element.
      *
-     * @param ch         the character
+     * @param tag the element's XML tag
+     */
+    private void createElement(final String tag) {
+
+        final ModelTreeNode newElement = new ModelTreeNode();
+        final TypedMap map = newElement.map();
+        map.put(XmlTreeWriter.TAG, tag);
+
+        if (!this.elementStack.isEmpty()) {
+            final ModelTreeNode activeElement = this.elementStack.getLast();
+            activeElement.addChild(newElement);
+        }
+
+        if (this.pendingComment != null) {
+            map.put(XmlTreeWriter.COMMENT, this.pendingComment);
+            this.pendingComment = null;
+        }
+
+        this.elementStack.add(newElement);
+    }
+
+    /**
+     * Processes a character in the PI (processing instruction) state.  Any character is valid here, but '?' (not at the
+     * end of a line) moves to the PI_CLOSE state.
+     *
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      */
-    private void doXmlDecl(final int ch, final boolean lastInLine) {
+    private void doPI(final int cp, final boolean lastInLine) {
 
-        if (ch == QUESTION_MARK && !lastInLine) {
-            this.state = EParseState.XML_DECL_CLOSE;
+        if (cp == QUESTION_MARK && !lastInLine) {
+            this.state = EParseState.PI_CLOSE;
         }
     }
 
     /**
-     * Processes a character in the XML_DECL_CLOSE state.  If the character is '>', the XMLDecl is closed, and we return
-     * to the PROLOG_START state; otherwise, we return to the XML_DECL state.
+     * Processes a character in the PI_CLOSE state.  If the character is '&gt;', the PI is closed, and we return to the
+     * AWAITING_ELEMENT state; otherwise, we return to the PI state.
      *
-     * @param ch the character
+     * @param cp the code point
      */
-    private void doXmlDeclClose(final int ch) {
+    private void doPIClose(final int cp) {
 
         // NOTE: The '?' that got us to this state was not allowed to be the last character in its line, so we do
         // not need to test whether we are looking at the first character in a line.
-        this.state = ch == RIGHT_ANGLE_BRACKET ? EParseState.PROLOG_START : EParseState.XML_DECL;
+
+        this.state = cp == RIGHT_ANGLE_BRACKET ? EParseState.AWAITING_ELEMENT : EParseState.PI;
     }
 
     /**
@@ -409,33 +513,51 @@ public final class XmlTreeParser {
      *
      * @param line       the line index
      * @param col        the column index
-     * @param ch         the character
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    private boolean doStartComment(final int line, final int col, final int ch, final boolean lastInLine,
-                                   final ParsingLog log) {
+    private ESuccessFailure doStartComment(final int line, final int col, final int cp, final boolean lastInLine,
+                                           final ParsingLog log) {
 
-        boolean abort = false;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         // NOTE: The '!' that got us to this state was not allowed to be the last character in its line, so we do
         // not need to test whether we are looking at the first character in a line.
-        if (ch == DASH) {
+
+        if (cp == DASH) {
             if (lastInLine) {
                 // Found "<!-" at the end of a line.
-                log.add(ParsingLogEntryType.ERROR, line, col - 2, line, col,
-                        "Start of XML comment is missing second '-' character.");
-                abort = true;
+                if (this.elementStack.isEmpty()) {
+                    // CDATA is not allowed outside the root element
+                    log.add(ParsingLogEntryType.ERROR, line, col - 2, line, col,
+                            "Start of XML comment is missing second '-' character.");
+                    result = ESuccessFailure.FAILURE;
+                } else {
+                    this.cdata.reset();
+                    this.cdata.add("<!-");
+                    this.state = EParseState.CDATA;
+                    log.add(ParsingLogEntryType.WARNING, line, col - 2, "'<' should be escaped in character data.");
+                }
             } else {
                 this.state = EParseState.COMMENT_DASH;
             }
+        } else if (this.elementStack.isEmpty()) {
+            // CDATA is not allowed outside the root element
+            log.add(ParsingLogEntryType.ERROR, line, col - 2, line, col,
+                    "Unexpected character, expecting '<!--' to begin a comment.");
+            result = ESuccessFailure.FAILURE;
         } else {
-            log.add(ParsingLogEntryType.ERROR, line, col,
-                    "Unexpected character, expecting '-' to begin a comment.");
-            abort = true;
+            this.cdata.reset();
+            this.cdata.add("<!");
+            this.cdata.appendChar((char) cp);
+            this.state = EParseState.CDATA;
+            log.add(ParsingLogEntryType.WARNING, line, col - 2, "'<' should be escaped in character data.");
         }
 
-        return abort;
+        return result;
     }
 
     /**
@@ -444,38 +566,47 @@ public final class XmlTreeParser {
      *
      * @param line the line index
      * @param col  the column index
-     * @param ch   the character
+     * @param cp   the code point
      * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    private boolean doCommentDash(final int line, final int col, final int ch, final ParsingLog log) {
+    private ESuccessFailure doCommentDash(final int line, final int col, final int cp, final ParsingLog log) {
 
-        boolean abort = false;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         // NOTE: The '-' that got us to this state was not allowed to be the last character in its line, so we do
         // not need to test whether we are looking at the first character in a line.
 
-        if (ch == DASH) {
+        if (cp == DASH) {
             this.state = EParseState.COMMENT;
             this.accumulator.reset();
+        } else if (this.elementStack.isEmpty()) {
+            // CDATA is not allowed outside the root element
+            log.add(ParsingLogEntryType.ERROR, line, col - 3, line, col,
+                    "Unexpected character, expecting '<!--' to begin a comment.");
+            result = ESuccessFailure.FAILURE;
         } else {
-            log.add(ParsingLogEntryType.ERROR, line, col,
-                    "Unexpected character, expecting '-' to begin a comment.");
-            abort = true;
+            this.cdata.reset();
+            this.cdata.add("<!-");
+            this.cdata.appendChar((char) cp);
+            this.state = EParseState.CDATA;
+            log.add(ParsingLogEntryType.WARNING, line, col - 3, "'<' should be escaped in character data");
         }
 
-        return abort;
+        return result;
     }
 
     /**
      * Processes a character in the COMMENT state.  Comment characters are accumulated until we find "-->".  When we
      * find the first '-' (not at the end of its line), we move to the COMMEND_END1 state.
      *
-     * @param ch         the character
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      */
-    private void doComment(final int ch, final boolean lastInLine) {
+    private void doComment(final int cp, final boolean lastInLine) {
 
-        if (ch == DASH && !lastInLine) {
+        if (cp == DASH && !lastInLine) {
             this.state = EParseState.COMMENT_END1;
             this.accumulator.appendChar((char) DASH);
         }
@@ -486,71 +617,400 @@ public final class XmlTreeParser {
      * for the "-->" closure. If the character is '-' (not at the end of its line), we move to the COMMEND_END2 state.
      * Otherwise, we move back to the COMMENT state.
      *
-     * @param ch         the character
+     * @param cp         the code point
      * @param lastInLine true if the character is the last character in its line
      */
-    private void doCommentEnd1(final int ch, final boolean lastInLine) {
+    private void doCommentEnd1(final int cp, final boolean lastInLine) {
 
-        this.accumulator.appendChar((char) ch);
-        this.state = ch == DASH && !lastInLine ? EParseState.COMMENT_END2 : EParseState.COMMENT;
+        this.accumulator.appendChar((char) cp);
+        this.state = cp == DASH && !lastInLine ? EParseState.COMMENT_END2 : EParseState.COMMENT;
     }
 
     /**
-     * Processes a character in the COMMENT_END2 state.  If the character is '>', the comment is complete, and we cache
-     * it so it can be associated with the next element found.
+     * Processes a character in the COMMENT_END2 state.  If the character is '&gt;', the comment is complete, and we
+     * cache it so it can be associated with the next element found.
      *
-     * @param ch         the character
-     * @param lastInLine true if the character is the last character in its line
+     * @param cp the code point
      */
-    private void doCommentEnd2(final int ch, final boolean lastInLine) {
+    private void doCommentEnd2(final int cp) {
 
-        if (ch == RIGHT_ANGLE_BRACKET) {
+        if (cp == RIGHT_ANGLE_BRACKET) {
             final String commentTextWithDashes = this.accumulator.toString();
             final int len = commentTextWithDashes.length();
             final String commentText = commentTextWithDashes.substring(0, len - 2).trim();
-            this.pendingComments.add(commentText);
-
-            // FIXME: DO we return to the "PROLOG" state or some other state?
-            this.state = EParseState.PROLOG_START;
-
+            final String unescaped = XmlEscaper.unescape(commentText);
+            if (this.pendingComment == null) {
+                this.pendingComment = unescaped;
+            } else {
+                this.pendingComment = SimpleBuilder.concat(this.pendingComment, " ", unescaped);
+            }
+            this.state = EParseState.AWAITING_ELEMENT;
         } else {
             this.state = EParseState.COMMENT;
         }
     }
 
     /**
-     * Gets the root node of the successfully parsed document.
+     * Processes a character in the ELEMENT_NAME state.  If the character is a name character, we accumulate it and
+     * remain in this state or if the character was at the end of its line, move to the ELEMENT_AWAITING_ATTR state.
+     * Whitespace completes the name amd moves to the ELEMENT_AWAITING_ATTR state, a '>' character moves to the
+     * AWAITING_ELEMENT state, and '/' moves to the CLOSING_EMPTY_ELEMENT state.
      *
-     * @return the root node
+     * @param line       the line index
+     * @param col        the column index
+     * @param cp         the code point
+     * @param lastInLine true if the character is the last character in its line
+     * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    public ModelTreeNode getRootNode() {
+    private ESuccessFailure doElementName(final int line, final int col, final int cp, final boolean lastInLine,
+                                          final ParsingLog log) {
 
-        return this.root;
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == RIGHT_ANGLE_BRACKET) {
+            final String tag = this.accumulator.toString();
+            this.accumulator.reset();
+            createElement(tag);
+            this.state = EParseState.AWAITING_ELEMENT;
+        } else if (cp == SLASH) {
+            if (lastInLine) {
+                // Found '/' at the end of a line while parsing element name
+                log.add(ParsingLogEntryType.ERROR, line, col - 2, line, col,
+                        "Start of XML comment is missing second '-' character.");
+                result = ESuccessFailure.FAILURE;
+            } else {
+                final String tag = this.accumulator.toString();
+                this.accumulator.reset();
+                createElement(tag);
+                this.state = EParseState.CLOSING_EMPTY_ELEMENT;
+            }
+        } else if (XmlChars.isNameChar(cp)) {
+            this.accumulator.appendChar((char) cp);
+            if (lastInLine) {
+                final String tag = this.accumulator.toString();
+                this.accumulator.reset();
+                createElement(tag);
+                this.state = EParseState.ELEMENT_AWAITING_ATTR;
+            }
+        } else if (XmlChars.isWhitespace(cp)) {
+            final String tag = this.accumulator.toString();
+            this.accumulator.reset();
+            createElement(tag);
+            this.state = EParseState.ELEMENT_AWAITING_ATTR;
+        } else {
+            log.add(ParsingLogEntryType.ERROR, line, col, "Invalid character in element name.");
+            // Continue parsing - maybe we can catch more errors
+            this.accumulator.appendChar((char) cp);
+        }
+
+        return result;
     }
 
     /**
-     * States of the parser.
+     * Processes a character in the ELEMENT_AWAITING_ATTR state.  Whitespace is ignored, and a name start character
+     * moves to the ATTR_NAME state.  A '&gt;' character ends the element start tag and moves to the AWAITING_ELEMENT
+     * state, and a '/' character moves to the CLOSING_EMPTY_ELEMENT state.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
      */
-    enum EParseState {
-        /** At the start of the prolog; */
-        PROLOG_START,
-        /** In prolog, found a '&lt;' character. */
-        PROLOG_OPEN_ANGLE,
-        /** Within the XMLDecl, scanning for the closing "?&gt;". */
-        XML_DECL,
-        /** Found a '?' within an XMLDecl, testing for '&gt;'. */
-        XML_DECL_CLOSE,
-        /** Found a "&lt;!" that marks the start of a comment. */
-        START_COMMENT,
-        /** Found the first dash after "&lt;!" at the start of a comment. */
-        COMMENT_DASH,
-        /** Accumulating comment, awaiting the '--&gt;' to end the comment. */
-        COMMENT,
-        /** Accumulating comment, found a single '-' within comment text that is not at line end. */
-        COMMENT_END1,
-        /** Accumulating comment, found "--" within comment text that is not at line end. */
-        COMMENT_END2,
-        /** Accumulating an element name. */
-        ELEMENT_NAME,
+    private ESuccessFailure doElementAwaitingAttr(final int line, final int col, final int cp, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == RIGHT_ANGLE_BRACKET) {
+            // No more attributes - move inside the element that was just opened
+            this.state = EParseState.AWAITING_ELEMENT;
+        } else if (cp == SLASH) {
+            this.state = EParseState.CLOSING_EMPTY_ELEMENT;
+        } else if (XmlChars.isNameStartChar(cp)) {
+            // Starting a new attribute
+            this.accumulator.reset();
+            this.accumulator.appendChar((char) cp);
+            this.state = EParseState.ATTR_NAME;
+        } else if (!XmlChars.isWhitespace(cp)) {
+            log.add(ParsingLogEntryType.ERROR, line, col,
+                    "Unexpected character, expecting attribute name, '>', or '/>'.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the CLOSING_EMPTY_ELEMENT state.  The only valid character here is '>'.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     */
+    private ESuccessFailure doClosingEmptyElement(final int line, final int col, final int cp, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == RIGHT_ANGLE_BRACKET) {
+            // The element is closed - pop it from the stack and return to awaiting the next element)
+            final ModelTreeNode finished = this.elementStack.removeLast();
+            if (this.elementStack.isEmpty()) {
+                // This was the ROOT element
+                if (this.root == null) {
+                    this.root = finished;
+                } else {
+                    log.add(ParsingLogEntryType.ERROR, line, col, "Document may have only one root element.");
+                    result = ESuccessFailure.FAILURE;
+                }
+            }
+            this.state = EParseState.AWAITING_ELEMENT;
+        } else {
+            log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting '>'.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the CDATA state.  If we encounter '&lt;' (that is not at the end of its line) we close
+     * out the active CDATA block and move to the AWAITING_ELEMENT_OPEN_ANGLE state.  Otherwise, we keep accumulating
+     * CDATA.
+     *
+     * @param line       the line index
+     * @param col        the column index
+     * @param cp         the code point
+     * @param lastInLine true if the character is the last character in its line
+     * @param log        a log to which to write messages
+     */
+    private void doCData(final int line, final int col, final int cp, final boolean lastInLine, final ParsingLog log) {
+
+        if (cp == RIGHT_ANGLE_BRACKET && !lastInLine) {
+            final String content = this.cdata.toString();
+            this.cdata.reset();
+            final String unescaped = XmlEscaper.unescape(content);
+
+            final ModelTreeNode dataNode = new ModelTreeNode();
+            final TypedMap map = dataNode.map();
+            map.put(XmlTreeWriter.VALUE, unescaped);
+
+            final ModelTreeNode activeElement = this.elementStack.getLast();
+            activeElement.addChild(dataNode);
+            this.state = EParseState.AWAITING_ELEMENT_OPEN_ANGLE;
+        } else {
+            this.cdata.appendChar((char) cp);
+        }
+    }
+
+    /**
+     * Processes a character in the ATTR_NAME state.  If the character is a name character, we accumulate it and remain
+     * in this state or if the character was at the end of its line, move to the AWAIT_ATTR_EQ state.  If the character
+     * is '=', we move to the AWAIT_ATTR_VALUE state.
+     *
+     * @param line       the line index
+     * @param col        the column index
+     * @param cp         the code point
+     * @param lastInLine true if the character is the last character in its line
+     * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure doAttrName(final int line, final int col, final int cp, final boolean lastInLine,
+                                       final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == EQ) {
+            this.pendingAttrName = this.accumulator.toString();
+            this.accumulator.reset();
+            this.state = EParseState.AWAIT_ATTR_VALUE;
+        } else if (XmlChars.isWhitespace(cp)) {
+            this.pendingAttrName = this.accumulator.toString();
+            this.accumulator.reset();
+            this.state = EParseState.AWAIT_ATTR_EQ;
+        } else if (XmlChars.isNameChar(cp)) {
+            this.accumulator.appendChar((char) cp);
+            if (lastInLine) {
+                this.pendingAttrName = this.accumulator.toString();
+                this.accumulator.reset();
+                this.state = EParseState.AWAIT_ATTR_EQ;
+            }
+        } else {
+            log.add(ParsingLogEntryType.ERROR, line, col,
+                    "Unexpected character in attribute name, expecting whitespace or '='.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the AWAIT_ATTR_EQ state.  If the character is '=', we move into the AWAIT_ATTR_VALUE
+     * state.  If whitespace, we remain in this state.  All other characters are errors.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure doAwaitAttrEq(final int line, final int col, final int cp, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == EQ) {
+            this.state = EParseState.AWAIT_ATTR_VALUE;
+        } else if (!XmlChars.isWhitespace(cp)) {
+            log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '='.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the AWAIT_ATTR_VALUE state.  If the character is a single or double quote, we store that
+     * delimiter and move the ATTR_VALUE state.  If whitespace, we remain in this state.  All other characters are
+     * errors.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure doAwaitAttrValue(final int line, final int col, final int cp, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == TICK || cp == QUOTE) {
+            this.attrValueQuote = cp;
+            this.accumulator.reset();
+            this.state = EParseState.ATTR_VALUE;
+        } else if (!XmlChars.isWhitespace(cp)) {
+            log.add(ParsingLogEntryType.ERROR, line, col,
+                    "Unexpected character, expecting attribute value in single or double quotes.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the ATTR_VALUE state.  If the character is the delimiter for the value, the value is
+     * completed and stored in the element, and we move to the ELEMENT_AWAITING_ATTR state. If the character is
+     * whitespace of any kind, we add a space character to the attribute value. Otherwise, we accumulate the character
+     * to the attribute value.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     */
+    private void doAttrValue(final int line, final int col, final int cp, final ParsingLog log) {
+
+        if (cp == this.attrValueQuote) {
+            final String value = this.accumulator.toString();
+            this.accumulator.reset();
+            final String unescaped = XmlEscaper.unescape(value);
+            final ModelTreeNode activeElement = this.elementStack.getLast();
+            final AttrKey<String> key = new AttrKey<>(this.pendingAttrName, StringCodec.INST);
+            final TypedMap map = activeElement.map();
+            map.put(key, unescaped);
+            this.state = EParseState.ELEMENT_AWAITING_ATTR;
+        } else if (cp == LEFT_ANGLE_BRACKET) {
+            // This is bad XML, but we warn and accumulate it anyway
+            log.add(ParsingLogEntryType.WARNING, line, col, "'<' should be escaped in attribute value.");
+            this.accumulator.appendChar((char) LEFT_ANGLE_BRACKET);
+
+        } else if (XmlChars.isWhitespace(cp)) {
+            this.accumulator.appendChar(CoreConstants.SPC_CHAR);
+        } else {
+            this.accumulator.appendChar((char) cp);
+        }
+    }
+
+    /**
+     * Processes a character in the ELEMENT_END_TAG state.  The only valid character here is a Name start character for
+     * the closing element name.
+     *
+     * @param line       the line index
+     * @param col        the column index
+     * @param cp         the code point
+     * @param lastInLine true if the character is the last character in its line
+     * @param log        a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure doElementEndTag(final int line, final int col, final int cp, final boolean lastInLine,
+                                            final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (XmlChars.isNameStartChar(cp)) {
+            this.accumulator.appendChar((char) cp);
+            if (lastInLine) {
+                this.pendingAttrName = this.accumulator.toString();
+                this.accumulator.reset();
+                this.state = EParseState.ELEMENT_END_TAG_CLOSE;
+            } else {
+
+            }
+        } else {
+            log.add(ParsingLogEntryType.ERROR, line, col,
+                    "Unexpected character, expecting name of element being closed.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes a character in the ELEMENT_END_TAG_CLOSE state.  If character is whitespace, we remain in this state.
+     * If '>', we process the closing tag (which generates an error if the tag name does not match the active element
+     * tag name or if there is no active element).  All other characters are errors.
+     *
+     * @param line the line index
+     * @param col  the column index
+     * @param cp   the code point
+     * @param log  a log to which to write messages
+     * @return {@code FAILURE} to abort the parsing process (an error will have been added to the log);{@code SUCCESS}
+     *         if parsing can continue
+     */
+    private ESuccessFailure doElementEndTagClose(final int line, final int col, final int cp, final ParsingLog log) {
+
+        ESuccessFailure result = ESuccessFailure.SUCCESS;
+
+        if (cp == RIGHT_ANGLE_BRACKET) {
+            final String tag = this.accumulator.toString();
+            final ModelTreeNode activeElement = this.elementStack.getLast();
+            final TypedMap map = activeElement.map();
+
+            try {
+                final String activeTag = map.get(XmlTreeWriter.TAG);
+
+                if (tag.equals(activeTag)) {
+                    this.elementStack.removeLast();
+                } else {
+                    log.add(ParsingLogEntryType.ERROR, line, col,
+                            "Name in closing tag does not match name of active element (" + activeTag + ").");
+                    result = ESuccessFailure.FAILURE;
+                }
+            } catch (final StringParseException ex) {
+                log.add(ParsingLogEntryType.ERROR, line, col, "Parser error retrieving tag of active element.");
+                result = ESuccessFailure.FAILURE;
+            }
+        } else if (!XmlChars.isWhitespace(cp)) {
+            log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '>'.");
+            result = ESuccessFailure.FAILURE;
+        }
+
+        return result;
     }
 }
