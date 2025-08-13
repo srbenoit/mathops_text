@@ -39,6 +39,7 @@ import dev.mathops.text.parser.xml.XmlContent;
 import dev.mathops.text.parser.xml.XmlEscaper;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -116,6 +117,9 @@ public final class XmlTreeParser {
     /** A character used in XML. */
     private static final int AND = (int) '&';
 
+    /** The node factory. */
+    private final IModelTreeNodeFactory factory;
+
     /** The current state. */
     private EParseState state;
 
@@ -137,18 +141,29 @@ public final class XmlTreeParser {
     /** A stack of elements from the root down to the currently open element. */
     private final List<ModelTreeNode> elementStack;
 
+    private final AllowedAttributes allowedAttributes;
+
     /** The root element. */
     private ModelTreeNode root = null;
 
     /**
      * Constructs a new {@code XmlTreeParser}.
+     *
+     * @param theFactory the node factory
      */
-    private XmlTreeParser() {
+    private XmlTreeParser(final IModelTreeNodeFactory theFactory) {
 
+        if (theFactory == null) {
+            throw new IllegalArgumentException("Factory may not be null");
+        }
+
+        this.factory = theFactory;
         this.state = EParseState.AWAITING_ELEMENT;
         this.accumulator = new HtmlBuilder(30);
         this.cdata = new HtmlBuilder(100);
         this.elementStack = new ArrayList<>(10);
+
+        this.allowedAttributes = new AllowedAttributes();
     }
 
     /**
@@ -161,6 +176,7 @@ public final class XmlTreeParser {
      * @return the parsed tree
      * @throws ParsingException if the source XML could not be parsed
      */
+    @Deprecated
     public static ModelTreeNode parse(final char[] xml, final ETreeParserMode mode, final IModelTreeNodeFactory factory,
                                       final EDebugLevel debugLevel) throws ParsingException {
 
@@ -181,6 +197,7 @@ public final class XmlTreeParser {
      * @param debugLevel the debug level that governs diagnostic output
      * @return the node
      */
+    @Deprecated
     private static ModelTreeNode nodeFromElement(final IElement elem, final ETreeParserMode mode,
                                                  final ModelTreeNode parent, final IModelTreeNodeFactory factory,
                                                  final EDebugLevel debugLevel) {
@@ -262,23 +279,126 @@ public final class XmlTreeParser {
     }
 
     /**
+     * Parses the contents of an XML model tree node or stream into a tree.
+     *
+     * @param xmlTree    the model tree node root for the parsed XML document
+     * @param factory    a factory object to create new model tree nodes
+     * @param debugLevel the debug level that governs diagnostic output
+     * @return the parsed tree
+     * @throws ParsingException if the source XML could not be parsed
+     */
+    @Deprecated
+    public static ModelTreeNode xmlToModel(final ModelTreeNode xmlTree, final IModelTreeNodeFactory factory,
+                                           final EDebugLevel debugLevel) throws ParsingException {
+
+        return nodeFromXmlNode(xmlTree, null, factory, debugLevel);
+    }
+
+    /**
+     * Constructs a model tree node for a document defined by a supplied node factory from an XML tree node.
+     *
+     * @param xmlNode    the XML tree node
+     * @param parent     the parent node (null if creating the root node)
+     * @param factory    a factory object to create new model tree nodes
+     * @param debugLevel the debug level that governs diagnostic output
+     * @return the node
+     */
+    @Deprecated
+    private static ModelTreeNode nodeFromXmlNode(final ModelTreeNode xmlNode, final ModelTreeNode parent,
+                                                 final IModelTreeNodeFactory factory, final EDebugLevel debugLevel) {
+
+        final TypedMap xmlNodeMap = xmlNode.map();
+        final String tagName = xmlNodeMap.getString(XmlTreeWriter.TAG);
+        final AllowedAttributes allowedAttributes = new AllowedAttributes();
+
+        ModelTreeNode modelNode = null;
+        try {
+            modelNode = factory.construct(tagName, parent, allowedAttributes);
+            final TypedMap modelNodeMap = modelNode.map();
+
+            // Preserve the XML tag of the source XML node - we want the model node to be able to persist itself as XML
+            modelNodeMap.put(XmlTreeWriter.TAG, tagName);
+
+            // Extract all attributes and add to the model node (with String type)
+            if (allowedAttributes.isEmpty()) {
+                // Factory did not apply any restrictions, so add all the attributes found
+                modelNodeMap.copyAllAttributesFrom(xmlNodeMap);
+            } else {
+                // Add only the attributes that match what the factory allows
+                final Collection<AttrKey<?>> attrKeys = new ArrayList<>(10);
+                xmlNodeMap.getAttributeKeys(attrKeys);
+
+                for (final AttrKey<?> key : attrKeys) {
+                    if (allowedAttributes.contains(key)) {
+                        modelNodeMap.copyAttributeFrom(xmlNodeMap, key);
+                    } else {
+                        if (debugLevel.level < EDebugLevel.INFO.level) {
+                            final String attrName = key.getName();
+                            Log.warning("Attribute '", attrName, "' not supported in <", tagName,
+                                    "> element - ignoring.");
+                        }
+                    }
+                }
+            }
+
+            // Extract the lists of child nodes
+            ModelTreeNode child = xmlNode.getFirstChild();
+
+            while (child != null) {
+                ModelTreeNode innerNode = null;
+
+                // See if the XML element is a "CDATA" element
+                final TypedMap childMap = child.map();
+                final String cdata = childMap.getString(XmlTreeWriter.VALUE);
+                if (cdata == null) {
+                    innerNode = nodeFromXmlNode(child, modelNode, factory, debugLevel);
+                } else {
+                    final EAllowedChildren allowed = modelNode.getAllowedChildren();
+
+                    if (allowed == EAllowedChildren.ELEMENT_AND_DATA || allowed == EAllowedChildren.DATA) {
+                        innerNode = new ModelTreeNode();
+                        final TypedMap innerMap = innerNode.map();
+                        innerMap.put(XmlTreeWriter.VALUE, cdata);
+                    } else if (debugLevel.level < EDebugLevel.INFO.level) {
+                        if (!cdata.isBlank()) {
+                            Log.warning("Character data not supported in <", tagName, "> element - ignoring.");
+                        }
+                    }
+                }
+
+                if (innerNode != null) {
+                    innerNode.setParent(modelNode);
+                    modelNode.addChild(innerNode);
+                }
+
+                child = child.getNextSibling();
+            }
+        } catch (final TagNotAllowedException ex) {
+            Log.warning("Tree node factory could not construct root node with tag '", tagName, "'");
+        }
+
+        return modelNode;
+    }
+
+    /**
      * Attempts to parse XML content into a model tree node.
      *
-     * @param input the input to parse
-     * @param log   a log to which to add parsing errors, warnings, and messages
+     * @param xml     the input to parse
+     * @param factory a factory used to create nodes based on XML tag name and parent node
+     * @param log     a log to which to add parsing errors, warnings, and messages
      * @return the root element if parsing was successful; {@code null} if not
      */
-    public static ModelTreeNode parseXml(final LineOrientedParserInput input, final ParsingLog log) {
+    public static ModelTreeNode parseXml(final LineOrientedParserInput xml, final IModelTreeNodeFactory factory,
+                                         final ParsingLog log) {
 
-        final XmlTreeParser parser = new XmlTreeParser();
-
-        final int numLines = input.getNumLines();
+        final XmlTreeParser parser = new XmlTreeParser(factory);
 
         ESuccessFailure status = ESuccessFailure.SUCCESS;
 
+        final int numLines = xml.getNumLines();
         outer:
         for (int line = 0; line < numLines; ++line) {
-            final String content = input.getLine(line);
+            final String content = xml.getLine(line);
 
             final int last = content.length() - 1;
             for (int col = 0; col <= last; ++col) {
@@ -293,7 +413,7 @@ public final class XmlTreeParser {
 
         if (status == ESuccessFailure.SUCCESS) {
             if (parser.state != EParseState.AWAITING_ELEMENT) {
-                final String last = input.getLine(numLines - 1);
+                final String last = xml.getLine(numLines - 1);
                 final int len = last.length();
                 final String msg = Res.get(Res.UNEXPECTED_EOF);
                 log.add(ParsingLogEntryType.ERROR, numLines - 1, len, msg);
@@ -377,7 +497,6 @@ public final class XmlTreeParser {
                 log.add(ParsingLogEntryType.ERROR, line, col, "Unexpected character, expecting whitespace or '<'.");
                 result = ESuccessFailure.FAILURE;
             } else {
-                Log.info("Entering CDATA");
                 this.cdata.reset();
                 this.cdata.appendChar((char) cp);
                 this.state = EParseState.CDATA;
@@ -417,7 +536,6 @@ public final class XmlTreeParser {
                     log.add(ParsingLogEntryType.ERROR, line, col, "'<!' must be followed by '--', to start a comment.");
                     result = ESuccessFailure.FAILURE;
                 } else {
-                    Log.info("Entering CDATA 2");
                     this.cdata.reset();
                     this.cdata.add("<!");
                     this.state = EParseState.CDATA;
@@ -429,7 +547,7 @@ public final class XmlTreeParser {
         } else if (cp == SLASH && !lastInLine) {
             // This is a "</..." closing tag of a nonempty element
             if (this.elementStack.isEmpty()) {
-                log.add(ParsingLogEntryType.ERROR, line, col, line, col - 1, "No open element to close.");
+                log.add(ParsingLogEntryType.ERROR, line, col - 1, line, col, "No open element to close.");
                 result = ESuccessFailure.FAILURE;
             } else {
                 this.accumulator.reset();
@@ -439,7 +557,13 @@ public final class XmlTreeParser {
             if (lastInLine) {
                 // The linefeed counts as whitespace to close the element name
                 final String tag = Character.toString(cp);
-                createElement(tag);
+                try {
+                    createElement(tag);
+                } catch (final TagNotAllowedException ex) {
+                    final String msg = SimpleBuilder.concat("The ", tag, " tag is not allowed here.");
+                    // Continue parsing - maybe we can catch more errors
+                    log.add(ParsingLogEntryType.ERROR, line, col, msg);
+                }
                 this.state = EParseState.ELEMENT_AWAITING_ATTR;
             } else {
                 this.accumulator.appendChar((char) cp);
@@ -451,7 +575,6 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '?', '!', or an element name.");
             result = ESuccessFailure.FAILURE;
         } else {
-            Log.info("Entering CDATA 3");
             this.cdata.reset();
             this.cdata.appendChar((char) LEFT_ANGLE_BRACKET);
             this.cdata.appendChar((char) cp);
@@ -467,10 +590,18 @@ public final class XmlTreeParser {
      * currently active element.
      *
      * @param tag the element's XML tag
+     * @throws TagNotAllowedException of the tag is not allowed in this context by the factory
      */
-    private void createElement(final String tag) {
+    private void createElement(final String tag) throws TagNotAllowedException {
 
-//        Log.info("Creating element with tag '", tag, "'");
+        this.allowedAttributes.reset();
+
+        ModelTreeNode parent = null;
+        if (!this.elementStack.isEmpty()) {
+            parent = this.elementStack.getLast();
+        }
+
+        this.factory.construct(tag, parent, this.allowedAttributes);
 
         final ModelTreeNode newElement = new ModelTreeNode();
         final TypedMap map = newElement.map();
@@ -493,19 +624,31 @@ public final class XmlTreeParser {
      * Adds an attribute to the active element using the stored pending attribute name.
      *
      * @param value the attribute value
+     * @param log   a log to which to add errors
      */
-    private void addAttr(final String value) {
+    private void addAttr(final int line, final int col, final String value, final ParsingLog log) {
 
         final String unescaped = XmlEscaper.unescape(value);
-//        Log.info("Setting attribute '", this.pendingAttrName, "' to '", unescaped, "'");
 
         final ModelTreeNode activeElement = this.elementStack.getLast();
 
-        final AttrKey<String> key = new AttrKey<>(this.pendingAttrName, StringCodec.INST);
-        this.pendingAttrName = null;
+        if (this.allowedAttributes.isEmpty()) {
+            final AttrKey<String> key = new AttrKey<>(this.pendingAttrName, StringCodec.INST);
+            final TypedMap map = activeElement.map();
+            map.putString(key, unescaped);
+        } else {
+            final AttrKey<?> key = this.allowedAttributes.get(this.pendingAttrName);
+            if (key == null) {
+                final String msg = SimpleBuilder.concat("'", this.pendingAttrName,
+                        "' attribute is not supported - ignoring.");
+                log.add(ParsingLogEntryType.ERROR, line, col - 2, line, col, msg);
+            } else {
+                final TypedMap map = activeElement.map();
+                map.putString(key, unescaped);
+            }
+        }
 
-        final TypedMap map = activeElement.map();
-        map.put(key, unescaped);
+        this.pendingAttrName = null;
     }
 
     /**
@@ -565,7 +708,6 @@ public final class XmlTreeParser {
                             "Start of XML comment is missing second '-' character.");
                     result = ESuccessFailure.FAILURE;
                 } else {
-                    Log.info("Entering CDATA 4");
                     this.cdata.reset();
                     this.cdata.add("<!-");
                     this.state = EParseState.CDATA;
@@ -580,7 +722,6 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '<!--' to begin a comment.");
             result = ESuccessFailure.FAILURE;
         } else {
-            Log.info("Entering CDATA 5");
             this.cdata.reset();
             this.cdata.add("<!");
             this.cdata.appendChar((char) cp);
@@ -618,7 +759,6 @@ public final class XmlTreeParser {
                     "Unexpected character, expecting '<!--' to begin a comment.");
             result = ESuccessFailure.FAILURE;
         } else {
-            Log.info("Entering CDATA 6");
             this.cdata.reset();
             this.cdata.add("<!-");
             this.cdata.appendChar((char) cp);
@@ -670,7 +810,6 @@ public final class XmlTreeParser {
 
         if (cp == RIGHT_ANGLE_BRACKET) {
             final String commentTextWithDashes = this.accumulator.toString();
-            Log.info("Comment text is '", commentTextWithDashes, "'");
             this.accumulator.reset();
             final int len = commentTextWithDashes.length();
             final String commentText = commentTextWithDashes.substring(0, len - 2).trim();
@@ -708,8 +847,14 @@ public final class XmlTreeParser {
         if (cp == RIGHT_ANGLE_BRACKET) {
             final String tag = this.accumulator.toString();
             this.accumulator.reset();
-            createElement(tag);
-            this.state = EParseState.AWAITING_ELEMENT;
+            try {
+                createElement(tag);
+                this.state = EParseState.AWAITING_ELEMENT;
+            } catch (final TagNotAllowedException ex) {
+                final String msg = SimpleBuilder.concat("The ", tag, " tag is not allowed here.");
+                // Continue parsing - maybe we can catch more errors
+                log.add(ParsingLogEntryType.ERROR, line, col, msg);
+            }
         } else if (cp == SLASH) {
             if (lastInLine) {
                 // Found '/' at the end of a line while parsing element name
@@ -719,7 +864,14 @@ public final class XmlTreeParser {
             } else {
                 final String tag = this.accumulator.toString();
                 this.accumulator.reset();
-                createElement(tag);
+                try {
+                    createElement(tag);
+                    this.state = EParseState.AWAITING_ELEMENT;
+                } catch (final TagNotAllowedException ex) {
+                    final String msg = SimpleBuilder.concat("The ", tag, " tag is not allowed here.");
+                    // Continue parsing - maybe we can catch more errors
+                    log.add(ParsingLogEntryType.ERROR, line, col, msg);
+                }
                 this.state = EParseState.CLOSING_EMPTY_ELEMENT;
             }
         } else if (XmlChars.isNameChar(cp)) {
@@ -727,13 +879,27 @@ public final class XmlTreeParser {
             if (lastInLine) {
                 final String tag = this.accumulator.toString();
                 this.accumulator.reset();
-                createElement(tag);
+                try {
+                    createElement(tag);
+                    this.state = EParseState.AWAITING_ELEMENT;
+                } catch (final TagNotAllowedException ex) {
+                    final String msg = SimpleBuilder.concat("The ", tag, " tag is not allowed here.");
+                    // Continue parsing - maybe we can catch more errors
+                    log.add(ParsingLogEntryType.ERROR, line, col, msg);
+                }
                 this.state = EParseState.ELEMENT_AWAITING_ATTR;
             }
         } else if (XmlChars.isWhitespace(cp)) {
             final String tag = this.accumulator.toString();
             this.accumulator.reset();
-            createElement(tag);
+            try {
+                createElement(tag);
+                this.state = EParseState.AWAITING_ELEMENT;
+            } catch (final TagNotAllowedException ex) {
+                final String msg = SimpleBuilder.concat("The ", tag, " tag is not allowed here.");
+                // Continue parsing - maybe we can catch more errors
+                log.add(ParsingLogEntryType.ERROR, line, col, msg);
+            }
             this.state = EParseState.ELEMENT_AWAITING_ATTR;
         } else {
             log.add(ParsingLogEntryType.ERROR, line, col, "Invalid character in element name.");
@@ -944,7 +1110,7 @@ public final class XmlTreeParser {
         if (cp == this.attrValueQuote) {
             final String value = this.accumulator.toString();
             this.accumulator.reset();
-            addAttr(value);
+            addAttr(line, col, value, log);
             this.state = EParseState.ELEMENT_AWAITING_ATTR;
         } else if (cp == LEFT_ANGLE_BRACKET) {
             // This is bad XML, but we warn and accumulate it anyway
@@ -1082,7 +1248,6 @@ public final class XmlTreeParser {
         ESuccessFailure result = ESuccessFailure.SUCCESS;
 
         final ModelTreeNode finished = this.elementStack.removeLast();
-        Log.info("Closed element - " + this.elementStack.size() + " remain");
 
         // If the element consists of only CDATA nodes, mark it as "inline"
         boolean cDataOnly = true;

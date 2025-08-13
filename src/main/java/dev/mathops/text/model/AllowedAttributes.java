@@ -56,4 +56,23 @@ public final class AllowedAttributes {
 
         return this.attributeKeys.get(name);
     }
+
+    /**
+     * Tests whether an attribute key is in this set of allowed attributes.
+     *
+     * @param key the key
+     * @return true if the key is in the allowed set
+     */
+    public boolean contains(final AttrKey<?> key) {
+
+        return this.attributeKeys.containsValue(key);
+    }
+
+    /**
+     * Resets this object to an empty set.
+     */
+    public void reset() {
+
+        this.attributeKeys.clear();
+    }
 }

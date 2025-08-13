@@ -27,7 +27,8 @@ public final class SimpleModelTreeNodeFactory implements IModelTreeNodeFactory {
      *                      type)
      * @return the newly constructed node (typically a subclass of {@code ModelTreeNode})
      */
-    public ModelTreeNode construct(final String xmlTag, final ModelTreeNode parent, AllowedAttributes attributeKeys) {
+    public ModelTreeNode construct(final String xmlTag, final ModelTreeNode parent,
+                                   final AllowedAttributes attributeKeys) {
 
         return new ModelTreeNode();
     }
