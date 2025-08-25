@@ -4,8 +4,9 @@
   <component name="GradleSettings">
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
+        <option name="distributionType" value="LOCAL" />
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
-        <option name="gradleHome" value="C:\opt\gradle-8.14" />
+        <option name="gradleHome" value="C:\opt\gradle-9.0" />
         <option name="gradleJvm" value="temurin-21.0.8.9" />
         <option name="modules">
           <set>
